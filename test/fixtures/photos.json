@@ -1,0 +1,137 @@
+{
+  "title": "Fixture | Photos to decode",
+  "brand": "",
+  "accent": "#046A38",
+  "inkOnColour": "#FFFFFF",
+  "inkOnWhite": "#1A2129",
+  "bg": "white",
+  "ring": "none",
+  "angle": 2,
+  "page": "landscape",
+  "density": "balanced",
+  "tiers": [
+    {
+      "id": "t000000",
+      "code": "P",
+      "label": "Partner",
+      "role": "Partner",
+      "fill": "green",
+      "attach": false,
+      "merge": false,
+      "align": "center"
+    },
+    {
+      "id": "t010000",
+      "code": "M",
+      "label": "Manager",
+      "role": "Manager",
+      "fill": "green",
+      "attach": false,
+      "merge": false,
+      "align": "center"
+    }
+  ],
+  "people": [
+    {
+      "id": "ph-jpeg",
+      "name": "Valid Jpeg",
+      "tierId": "t000000",
+      "office": "FRA",
+      "role": "",
+      "photo": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==",
+      "pw": 1,
+      "ph": 1,
+      "frame": {
+        "zoom": 1,
+        "ox": 0,
+        "oy": 0
+      }
+    },
+    {
+      "id": "ph-png",
+      "name": "Valid Png",
+      "tierId": "t000000",
+      "office": "HAM",
+      "role": "",
+      "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+      "pw": 1,
+      "ph": 1,
+      "frame": {
+        "zoom": 1,
+        "ox": 0,
+        "oy": 0
+      }
+    },
+    {
+      "id": "ph-badjpeg",
+      "name": "Corrupt Jpeg",
+      "tierId": "t000000",
+      "office": "BER",
+      "role": "",
+      "photo": "data:image/jpeg;base64,dGhpcyBpcyBub3QgYSBKUEVHIGF0IGFsbC4=",
+      "pw": 240,
+      "ph": 240,
+      "frame": {
+        "zoom": 1,
+        "ox": 0,
+        "oy": 0
+      }
+    },
+    {
+      "id": "ph-badpng",
+      "name": "Corrupt Png",
+      "tierId": "t010000",
+      "office": "MUC",
+      "role": "",
+      "photo": "data:image/png;base64,UE5HPyBuby4gZWlnaHQgYnl0ZXMgb2Ygbm90aGluZw==",
+      "pw": 240,
+      "ph": 240,
+      "frame": {
+        "zoom": 1,
+        "ox": 0,
+        "oy": 0
+      }
+    },
+    {
+      "id": "ph-svg",
+      "name": "Svg Wearing Jpeg",
+      "tierId": "t010000",
+      "office": "DUS",
+      "role": "",
+      "photo": "data:image/jpeg;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIG9ubG9hZD0nYWxlcnQoMSknLz4=",
+      "pw": 100,
+      "ph": 100,
+      "frame": {
+        "zoom": 1,
+        "ox": 0,
+        "oy": 0
+      }
+    },
+    {
+      "id": "ph-lying",
+      "name": "Lying Dimensions",
+      "tierId": "t010000",
+      "office": "FRA",
+      "role": "",
+      "photo": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==",
+      "pw": 400,
+      "ph": 300,
+      "frame": {
+        "zoom": 1.5,
+        "ox": 0.9,
+        "oy": -0.45
+      }
+    },
+    {
+      "id": "ph-none",
+      "name": "No Photo",
+      "tierId": "t010000",
+      "office": "BER",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    }
+  ]
+}

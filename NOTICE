@@ -1,0 +1,51 @@
+TIERFORM
+Copyright 2026 Christian J. Heinze
+https://github.com/chrisjohe/tierform
+
+This product includes software developed by Christian J. Heinze.
+
+TIERFORM and the TIERFORM logo are trademarks of Christian J. Heinze. No
+trademark licence is granted under the Apache License; see Section 6.
+
+Licensed under the Apache License, Version 2.0. You may obtain a copy of
+the License at http://www.apache.org/licenses/LICENSE-2.0
+
+-------------------------------------------------------------------------
+This product bundles the following third-party assets, which are NOT
+covered by the Apache License grant above and remain under their own terms.
+
+Material Symbols (icon artwork)
+  Copyright Google LLC
+  https://github.com/google/material-design-icons
+  Licensed under the Apache License, Version 2.0 (see LICENSE)
+
+  74 of the 75 icons in the inline sprite are Material Symbols path data, with
+  the source fill attribute stripped so currentColor applies. The remaining
+  icon is the TIERFORM mark (sprite id #i-logo), which is this product's own
+  artwork under the Apache grant above and is not Google's; it sits below the
+  PLACEHOLDER comment that marks where Google's artwork stops.
+
+-------------------------------------------------------------------------
+GitHub Invertocat (repository link icon)
+  Copyright GitHub, Inc.
+  GitHub and the Invertocat are trademarks of GitHub, Inc.
+  https://docs.github.com/en/site-policy/other-site-policies/github-logo-policy
+
+  Used solely as a secondary link to this project's GitHub repository. No
+  affiliation with or endorsement by GitHub is implied. The mark is not
+  covered by TIERFORM's Apache License grant.
+
+-------------------------------------------------------------------------
+Open Sans (bundled font)
+  Copyright 2020 The Open Sans Project Authors
+  https://github.com/googlefonts/opensans
+  Licensed under the SIL Open Font License, Version 1.1
+  Full text: licenses/OpenSans-OFL-1.1.txt — https://openfontlicense.org
+
+  As of version 2026.8 the variable font is embedded in tierform_app.html as a
+  WOFF2 payload — a lossless repackaging of the unmodified Google Fonts
+  variable TTF (glyphs, axes and name table unchanged), tracked in this
+  repository as fonts/OpenSans-VariableFont_wdth,wght.woff2. The chart
+  therefore renders identically on machines where Open Sans is not installed.
+  No font data is downloaded at runtime. The font remains under the OFL alone;
+  it is not covered by the Apache License grant above.

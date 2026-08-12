@@ -1,0 +1,67 @@
+{
+  "title": "Fixture | Legacy schema",
+  "brand": "",
+  "accent": "#046A38",
+  "ring": "none",
+  "angle": "subtle",
+  "tiers": [
+    {
+      "id": "L1",
+      "code": "P",
+      "label": "Partner",
+      "style": "solid"
+    },
+    {
+      "id": "L2",
+      "code": "SA / A",
+      "label": "(Senior) Assistant",
+      "style": "outline"
+    },
+    {
+      "id": "L3",
+      "code": "M",
+      "label": "Manager",
+      "style": "solid"
+    },
+    {
+      "id": "L4",
+      "code": "C",
+      "label": "Consultant",
+      "style": "solid"
+    }
+  ],
+  "people": [
+    {
+      "id": "LP1",
+      "name": "Alex Adler",
+      "tierId": "L1",
+      "office": "FRA",
+      "role": "",
+      "photo": null
+    },
+    {
+      "id": "LP2",
+      "name": "Bea Brandt",
+      "tierId": "L2",
+      "office": "HAM",
+      "role": "(Senior) Assistant",
+      "photo": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q=="
+    },
+    {
+      "id": "LP3",
+      "name": "Cem Conti",
+      "tierId": "L3",
+      "office": "BER",
+      "role": "",
+      "photo": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q=="
+    },
+    {
+      "id": "LP4",
+      "name": "Dara Dahl",
+      "tierId": "L4",
+      "office": "MUC",
+      "role": "",
+      "photo": null
+    }
+  ]
+}

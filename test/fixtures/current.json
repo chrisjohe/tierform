@@ -1,0 +1,434 @@
+{
+  "title": "Fixture | Current schema",
+  "brand": "ACME",
+  "accent": "#046A38",
+  "inkOnColour": "#FFFFFF",
+  "inkOnWhite": "#1A2129",
+  "bg": "white",
+  "ring": "none",
+  "angle": 2,
+  "page": "landscape",
+  "density": "balanced",
+  "tiers": [
+    {
+      "id": "t000000",
+      "code": "P",
+      "label": "Partner",
+      "role": "Partner",
+      "fill": "green",
+      "attach": false,
+      "merge": false,
+      "align": "left"
+    },
+    {
+      "id": "t010000",
+      "code": "SA",
+      "label": "Senior Assistant",
+      "role": "Senior Assistant",
+      "fill": "white",
+      "attach": true,
+      "merge": false,
+      "align": "right"
+    },
+    {
+      "id": "t020000",
+      "code": "A",
+      "label": "Assistant",
+      "role": "Assistant",
+      "fill": "white",
+      "attach": false,
+      "merge": true,
+      "align": "right"
+    },
+    {
+      "id": "t030000",
+      "code": "D",
+      "label": "Director",
+      "role": "Director",
+      "fill": "green",
+      "attach": false,
+      "merge": false,
+      "align": "center"
+    },
+    {
+      "id": "t040000",
+      "code": "SM",
+      "label": "Senior Manager",
+      "role": "Senior Manager",
+      "fill": "green",
+      "attach": false,
+      "merge": false,
+      "align": "center"
+    },
+    {
+      "id": "t050000",
+      "code": "M",
+      "label": "Manager",
+      "role": "Manager",
+      "fill": "green",
+      "attach": false,
+      "merge": false,
+      "align": "center"
+    },
+    {
+      "id": "t060000",
+      "code": "SC",
+      "label": "Senior Consultant",
+      "role": "Senior Consultant",
+      "fill": "green",
+      "attach": false,
+      "merge": false,
+      "align": "center"
+    },
+    {
+      "id": "t070000",
+      "code": "C",
+      "label": "Consultant",
+      "role": "Consultant",
+      "fill": "green",
+      "attach": false,
+      "merge": false,
+      "align": "center"
+    },
+    {
+      "id": "t080000",
+      "code": "JS",
+      "label": "Junior Staff",
+      "role": "Junior Staff",
+      "fill": "green",
+      "attach": false,
+      "merge": false,
+      "align": "center"
+    }
+  ],
+  "groups": [
+    {
+      "id": "g000000",
+      "label": "FRA"
+    },
+    {
+      "id": "g010000",
+      "label": "HAM"
+    },
+    {
+      "id": "g020000",
+      "label": "BER"
+    },
+    {
+      "id": "g030000",
+      "label": "MUC"
+    },
+    {
+      "id": "g040000",
+      "label": "DUS"
+    }
+  ],
+  "people": [
+    {
+      "id": "p0000000",
+      "name": "Alex Adler",
+      "tierId": "t000000",
+      "groupId": "g000000",
+      "role": "",
+      "photo": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==",
+      "pw": 400,
+      "ph": 300,
+      "frame": {
+        "zoom": 1.0,
+        "ox": 0.1,
+        "oy": -0.2
+      }
+    },
+    {
+      "id": "p0010000",
+      "name": "Bea Brandt",
+      "tierId": "t000000",
+      "groupId": "g010000",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    },
+    {
+      "id": "p0020000",
+      "name": "Cem Conti",
+      "tierId": "t010000",
+      "groupId": "g020000",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    },
+    {
+      "id": "p0030000",
+      "name": "Dara Dahl",
+      "tierId": "t010000",
+      "groupId": "g030000",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    },
+    {
+      "id": "p0040000",
+      "name": "Emil Engel",
+      "tierId": "t020000",
+      "groupId": "g040000",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    },
+    {
+      "id": "p0050000",
+      "name": "Fay Fischer",
+      "tierId": "t020000",
+      "groupId": "g000000",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    },
+    {
+      "id": "p0060000",
+      "name": "Gus Graf",
+      "tierId": "t030000",
+      "groupId": "g010000",
+      "role": "",
+      "photo": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==",
+      "pw": 400,
+      "ph": 300,
+      "frame": {
+        "zoom": 1.0,
+        "ox": 0.1,
+        "oy": -0.2
+      }
+    },
+    {
+      "id": "p0070000",
+      "name": "Hana Huber",
+      "tierId": "t030000",
+      "groupId": "g020000",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    },
+    {
+      "id": "p0080000",
+      "name": "Ivo Ibsen",
+      "tierId": "t030000",
+      "groupId": "g030000",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    },
+    {
+      "id": "p0090000",
+      "name": "Jules Jung",
+      "tierId": "t040000",
+      "groupId": "g040000",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    },
+    {
+      "id": "p0100000",
+      "name": "Kai Kranz",
+      "tierId": "t040000",
+      "groupId": "g000000",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    },
+    {
+      "id": "p0110000",
+      "name": "Lena Lorenz",
+      "tierId": "t040000",
+      "groupId": "g010000",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    },
+    {
+      "id": "p0120000",
+      "name": "Mira Mohr",
+      "tierId": "t040000",
+      "groupId": "g020000",
+      "role": "",
+      "photo": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==",
+      "pw": 400,
+      "ph": 300,
+      "frame": {
+        "zoom": 1.0,
+        "ox": 0.1,
+        "oy": -0.2
+      }
+    },
+    {
+      "id": "p0130000",
+      "name": "Nils Neumann",
+      "tierId": "t050000",
+      "groupId": "g030000",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    },
+    {
+      "id": "p0140000",
+      "name": "Otto Ostrom",
+      "tierId": "t050000",
+      "groupId": "g040000",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    },
+    {
+      "id": "p0150000",
+      "name": "Pia Pfeiffer",
+      "tierId": "t050000",
+      "groupId": "g000000",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    },
+    {
+      "id": "p0160000",
+      "name": "Quinn Quandt",
+      "tierId": "t050000",
+      "groupId": "g010000",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    },
+    {
+      "id": "p0170000",
+      "name": "Rosa Richter",
+      "tierId": "t050000",
+      "groupId": "g020000",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    },
+    {
+      "id": "p0180000",
+      "name": "Sven Stein",
+      "tierId": "t060000",
+      "groupId": "g030000",
+      "role": "",
+      "photo": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==",
+      "pw": 400,
+      "ph": 300,
+      "frame": {
+        "zoom": 1.0,
+        "ox": 0.1,
+        "oy": -0.2
+      }
+    },
+    {
+      "id": "p0190000",
+      "name": "Tara Thiel",
+      "tierId": "t060000",
+      "groupId": "g040000",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    },
+    {
+      "id": "p0200000",
+      "name": "Uwe Ulrich",
+      "tierId": "t060000",
+      "groupId": "g000000",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    },
+    {
+      "id": "p0210000",
+      "name": "Vera Voigt",
+      "tierId": "t070000",
+      "groupId": "g010000",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    },
+    {
+      "id": "p0220000",
+      "name": "Wim Wagner",
+      "tierId": "t070000",
+      "groupId": "g020000",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    },
+    {
+      "id": "p0230000",
+      "name": "Xenia Xu",
+      "tierId": "t070000",
+      "groupId": "g030000",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    },
+    {
+      "id": "p0240000",
+      "name": "Yann Yilmaz",
+      "tierId": "t080000",
+      "groupId": "g040000",
+      "role": "",
+      "photo": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==",
+      "pw": 400,
+      "ph": 300,
+      "frame": {
+        "zoom": 1.0,
+        "ox": 0.1,
+        "oy": -0.2
+      }
+    },
+    {
+      "id": "p0250000",
+      "name": "Zoe Zeller",
+      "tierId": "t080000",
+      "groupId": "g000000",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    }
+  ]
+}

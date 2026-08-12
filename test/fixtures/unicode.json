@@ -1,0 +1,80 @@
+{
+  "title": "Ünicode & Sonderzeichen — <Test>",
+  "brand": "\"Quoted\" & 'single'",
+  "accent": "#046A38",
+  "inkOnColour": "#FFFFFF",
+  "inkOnWhite": "#1A2129",
+  "bg": "transparent",
+  "ring": "accent",
+  "angle": 4,
+  "page": "portrait",
+  "density": "airy",
+  "tiers": [
+    {
+      "id": "u1",
+      "code": "P & Q",
+      "label": "Partner <& Co>",
+      "role": "Partner",
+      "fill": "green",
+      "attach": false,
+      "merge": false,
+      "align": "center"
+    },
+    {
+      "id": "u2",
+      "code": "M/D",
+      "label": "Manager \"Senior\"",
+      "role": "",
+      "fill": "white",
+      "attach": false,
+      "merge": true,
+      "align": "center"
+    }
+  ],
+  "people": [
+    {
+      "id": "u-p1",
+      "name": "Ærøskøbing Þórsdóttir",
+      "tierId": "u1",
+      "office": "KØB",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    },
+    {
+      "id": "u-p2",
+      "name": "山田 太郎",
+      "tierId": "u1",
+      "office": "TYO",
+      "role": "パートナー",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    },
+    {
+      "id": "u-p3",
+      "name": "Ana-María O'Brien & Sons",
+      "tierId": "u2",
+      "office": "MAD",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    },
+    {
+      "id": "u-p4",
+      "name": "🙂 Emoji Person",
+      "tierId": "u2",
+      "office": "FRA",
+      "role": "",
+      "photo": null,
+      "pw": 0,
+      "ph": 0,
+      "frame": null
+    }
+  ]
+}

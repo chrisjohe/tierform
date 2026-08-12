@@ -1,0 +1,20 @@
+# macOS
+.DS_Store
+
+# Saved roster documents. A roster holds real names, grades, groups and
+# base64 photos of identifiable people. The app writes these next to itself,
+# so the pattern has to be broad enough to catch one saved here by accident.
+# Test fixtures are exempt below: they are generated and hold no real data.
+*.json
+!test/fixtures/*.json
+
+# Local editor/agent settings, not project configuration
+.claude/
+
+# The development pipeline is not part of the release: CLAUDE.md carries the
+# working contract and TODO.md the plan, and neither belongs in a public
+# clone. Both live here as local working files and are never tracked — this
+# repository starts from a fresh history and must not acquire them, so the
+# rule stands from the first commit rather than trying to undo one.
+CLAUDE.md
+TODO.md

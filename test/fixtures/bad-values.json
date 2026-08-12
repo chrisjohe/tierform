@@ -1,0 +1,66 @@
+{
+  "title": "Fixture | Bad enums and colours",
+  "brand": "",
+  "accent": "red",
+  "inkOnColour": "#FFF",
+  "inkOnWhite": "#GGGGGG",
+  "bg": "chartreuse",
+  "ring": "sparkle",
+  "angle": 42,
+  "page": "a0-square",
+  "density": "extremely-airy",
+  "tiers": [
+    {
+      "id": "t1",
+      "code": "P",
+      "label": "Partner",
+      "role": "Partner",
+      "fill": "rainbow",
+      "attach": "yes",
+      "merge": 1,
+      "align": "middle"
+    },
+    {
+      "id": "t2",
+      "code": "M",
+      "label": "Manager",
+      "role": "Manager",
+      "fill": "green",
+      "attach": null,
+      "merge": null,
+      "align": "center"
+    }
+  ],
+  "people": [
+    {
+      "id": "p1",
+      "name": "Nan Dimensions",
+      "tierId": "t1",
+      "office": "FRA",
+      "role": "",
+      "photo": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==",
+      "pw": "wide",
+      "ph": -5,
+      "frame": {
+        "zoom": 99,
+        "ox": "left",
+        "oy": null
+      }
+    },
+    {
+      "id": "p2",
+      "name": "Infinite Frame",
+      "tierId": "t2",
+      "office": "HAM",
+      "role": "",
+      "photo": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==",
+      "pw": 1000000000000.0,
+      "ph": 0,
+      "frame": {
+        "zoom": -3,
+        "ox": 1000000000.0,
+        "oy": 1000000000.0
+      }
+    }
+  ]
+}

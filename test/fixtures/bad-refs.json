@@ -1,0 +1,72 @@
+{
+  "title": "Fixture | Broken references",
+  "accent": "#046A38",
+  "angle": 2,
+  "page": "landscape",
+  "density": "balanced",
+  "tiers": [
+    {
+      "id": "dup",
+      "code": "P",
+      "label": "Partner",
+      "role": "Partner",
+      "fill": "green",
+      "attach": false,
+      "merge": true,
+      "align": "center"
+    },
+    {
+      "id": "dup",
+      "code": "M",
+      "label": "Manager",
+      "role": "Manager",
+      "fill": "green",
+      "attach": false,
+      "merge": false,
+      "align": "center"
+    },
+    {
+      "id": "ok",
+      "code": "C",
+      "label": "Consultant",
+      "role": "Consultant",
+      "fill": "white",
+      "attach": true,
+      "merge": false,
+      "align": "left"
+    }
+  ],
+  "people": [
+    {
+      "id": "same",
+      "name": "Points At Nothing",
+      "tierId": "does-not-exist",
+      "office": "FRA",
+      "role": "",
+      "photo": null
+    },
+    {
+      "id": "same",
+      "name": "Duplicate Id",
+      "tierId": "ok",
+      "office": "FRA",
+      "role": "",
+      "photo": null
+    },
+    {
+      "id": "p3",
+      "name": "Ambiguous Tier",
+      "tierId": "dup",
+      "office": "HAM",
+      "role": "",
+      "photo": null
+    },
+    {
+      "id": "p4",
+      "name": "No Tier At All",
+      "office": "BER",
+      "role": "",
+      "photo": null
+    }
+  ]
+}
