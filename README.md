@@ -265,6 +265,18 @@ it.
 There is no build step and there must not be one. No dependencies, no
 bundler, no CDN — the file has to keep working when opened from `file://`.
 
+### How it was built
+
+TIERFORM was built in collaboration with AI coding agents, under a process
+designed so that nothing enters the repository unverified. An orchestrator
+agent plans each change and writes the specification; a builder agent
+implements exactly one change at a time; the orchestrator then reviews the
+result independently — full diff, all five test suites, and every new
+assertion mutation-tested by breaking the thing it guards and watching it go
+red. The owner approves each step, performs the browser checks no suite can
+reach, and decides alone what is committed. One step is one commit, so the
+history is the record: each commit message carries what was done and why.
+
 ### Tests
 
 Five suites, each running under either `node` or `osascript -l JavaScript`
