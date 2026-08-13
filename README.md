@@ -13,7 +13,10 @@ Open it and it works.
 
 ## Using it
 
-Download `tierform_app.html` and double-click it. That is the whole setup.
+[Download `tierform_app.html`](https://github.com/chrisjohe/tierform/raw/main/tierform_app.html)
+and double-click it. That is the whole setup. GitHub serves the file as plain
+text, so the link shows it in the browser instead of downloading it — save it to
+disk first.
 
 The ribbon has three tabs — **Start**, **Structure** and **Design** — and a
 **Roster** panel down the left that lists everyone on the chart. The panel can
