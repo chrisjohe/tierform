@@ -9,12 +9,16 @@ checklists below.
 Run the suites first — a manual pass over a build that fails them wastes an hour:
 
 ```sh
-osascript -l JavaScript test/harness.js     # geometry
-osascript -l JavaScript test/dom.js         # DOM wiring, ids, house rules
-osascript -l JavaScript test/document.js    # document model, undo, defaults()
-osascript -l JavaScript test/fixtures.js    # roster files, and the roster panel it builds
-osascript -l JavaScript test/import.js      # what the validator refuses and repairs
+node test/harness.js     # geometry
+node test/dom.js         # DOM wiring, ids, house rules
+node test/document.js    # document model, undo, defaults()
+node test/fixtures.js    # roster files, and the roster panel it builds
+node test/import.js      # what the validator refuses and repairs
 ```
+
+No Node on the machine? On macOS every suite also runs under JavaScriptCore
+with no install at all — `osascript -l JavaScript test/<suite>.js` — the same
+assertions, only slower.
 
 ---
 
