@@ -388,8 +388,8 @@ for(const c of cmdDefined){
    is impractical without a real parser: $("#id") is routinely bound to a
    short local name (well, empty, chip, bar, m, p…) and the SAME name means a
    different element in a different function, so a whole-script name→id map
-   would misattribute writes across functions. This scan is honestly scoped
-   instead to two sources of truth:
+   would misattribute writes across functions. The script side of this scan
+   is honestly scoped instead to two sources of truth:
      (a) every bare $("#id").hidden = site anywhere — no resolution needed,
      (b) the modal dialogs' own top-level functions, where a local variable
          bound via `const NAME = $("#id")` earlier in the SAME function body
@@ -397,7 +397,25 @@ for(const c of cmdDefined){
          local name can never cross-contaminate each other's id.
    A .hidden write reached through a variable bound outside these functions —
    there are a few, e.g. contrast/status-bar chips — is not covered; this
-   scope is a deliberate choice over a full scan. */
+   scope is a deliberate choice over a full scan.
+
+   That script-side scan still misses two whole families: elements a function
+   toggles only through a compound selector local (`$("#fontMenu .font-legend")`
+   bound to `legend`, then `legend.hidden = …` — no bare id to catch, and
+   syncFontAvailability isn't a modal function) and every ribbon menu opened
+   through the shared openMenu()/closeMenu() pair, which writes `m.hidden`
+   through a table-driven `$(spec.menu)` no static regex can resolve at all.
+   Both are covered instead by a THIRD, independent source that needs no
+   script resolution: every element the MARKUP itself marks `hidden` — a
+   div/menu/dialog that starts hidden always carries the attribute on the tag,
+   whether or not a script ever flips it back off. Reading id and class
+   straight off that tag is exactly how .font-legend (:1807, no id, class
+   only) and the whole RIBBON_MENUS family enter this check. SVG elements are
+   excluded on purpose: `icon.hidden = true` on an SVGElement sets a plain JS
+   property with no reflected attribute (see the comment at :192–196), so an
+   SVG can never legitimately carry a static `hidden` attribute here — the one
+   that does, the #icons sprite container, carries no class and so
+   contributes nothing to the check either way. */
 (() => {
   const MODAL_FNS = ["openAddModal","closeAddModal","setAddPhoto",
     "syncAddAvailability","openEditModal","closeEditModal","syncEditModal",
@@ -427,8 +445,8 @@ for(const c of cmdDefined){
     for(const m of matchAll(/\b(\w+)\.hidden\s*=/g, body))
       if(binds[m[1]]) hiddenIds.add(binds[m[1]]);
   }
-  /* The two anchors this check is built around — an empty set here would
-     make the loop below pass by having nothing to check. */
+  /* The two script-side anchors this half is built around — an empty set here
+     would make everything below pass by having nothing to check. */
   check(hiddenIds.has("addPhotoEmpty") && hiddenIds.has("addPhotoWell"),
     "the scan resolves both halves of the Add photo section this check "
     + "protects — got " + [...hiddenIds].sort().join(", "));
@@ -436,20 +454,53 @@ for(const c of cmdDefined){
   const css = /<style>([\s\S]*?)<\/style>/.exec(HTML);
   const CSS = (css ? css[1] : "").replace(/\/\*[\s\S]*?\*\//g, " ");
 
-  for(const id of hiddenIds){
+  /* class -> a representative element label, for the failure message. One
+     entry per class is deliberate (see CLAUDE.md: prefer a class check to a
+     case check) — a companion rule guards the CLASS, so two elements sharing
+     one undeclared class must not produce two assertions over one true gap. */
+  const classesToCheck = new Map();
+  function noteClass(cls, label){
+    if(!classesToCheck.has(cls)) classesToCheck.set(cls, label);
+  }
+  function classesOfId(id){
     const tagMatch = new RegExp('<[a-z]+ class="([^"]*)" id="' + id + '"').exec(MARKUP)
                    || new RegExp('<[a-z]+ id="' + id + '" class="([^"]*)"').exec(MARKUP);
-    if(!tagMatch) continue;      // no static class on this element — nothing can override [hidden]
-    for(const cls of tagMatch[1].split(/\s+/).filter(Boolean)){
-      const esc = cls.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const rule = new RegExp("\\." + esc + "(?:,[^{]*)?\\{([^}]*)\\}").exec(CSS);
-      if(!rule || !/display\s*:/.test(rule[1])) continue;    // this class sets no display — [hidden] is undisturbed
-      const companion = new RegExp("\\." + esc + "\\[hidden\\]\\s*\\{\\s*display\\s*:\\s*none\\s*\\}");
-      check(companion.test(CSS),
-        "#" + id + "'s class ." + cls + " sets display, so it needs its own ."
-        + cls + "[hidden]{display:none} companion rule or .hidden = true silently "
-        + "stops hiding it, exactly as it would for .add-photo-empty without one");
-    }
+    if(!tagMatch) return;        // no static class on this element — nothing can override [hidden]
+    for(const cls of tagMatch[1].split(/\s+/).filter(Boolean)) noteClass(cls, "#" + id);
+  }
+
+  for(const id of hiddenIds) classesOfId(id);
+
+  /* The markup source: every tag carrying a literal `hidden` attribute,
+     read for its own id (folded back into the id resolution above, so an
+     id AND class both present is not checked twice) and its own class list
+     (for id-less elements like .font-legend, which have no other way in). */
+  const HIDDEN_TAG = /<([a-z][a-z0-9]*)((?:\s+[a-zA-Z-]+(?:="[^"]*")?)*)\s+hidden(?=[\s>])/g;
+  let markupHiddenCount = 0;
+  for(const m of matchAll(HIDDEN_TAG, MARKUP)){
+    if(m[1] === "svg") continue;               // TRAP SVG — see the comment above
+    markupHiddenCount++;
+    const attrs = m[2];
+    const idm  = /\sid="([^"]*)"/.exec(attrs);
+    const clsm = /\sclass="([^"]*)"/.exec(attrs);
+    if(idm) classesOfId(idm[1]);
+    if(clsm) for(const cls of clsm[1].split(/\s+/).filter(Boolean)) noteClass(cls, "." + cls);
+  }
+  /* The markup-source anchor — proves .font-legend, which has no id and
+     reaches this check only through its own `hidden` attribute, was found. */
+  check(markupHiddenCount > 30 && classesToCheck.has("font-legend"),
+    "the markup scan resolves .font-legend as a hidden-by-default element "
+    + "(found " + markupHiddenCount + " markup-hidden tags)");
+
+  for(const [cls, label] of classesToCheck){
+    const esc = cls.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const rule = new RegExp("\\." + esc + "(?:,[^{]*)?\\{([^}]*)\\}").exec(CSS);
+    if(!rule || !/display\s*:/.test(rule[1])) continue;    // this class sets no display — [hidden] is undisturbed
+    const companion = new RegExp("\\." + esc + "\\[hidden\\]\\s*\\{\\s*display\\s*:\\s*none\\s*\\}");
+    check(companion.test(CSS),
+      label + "'s class ." + cls + " sets display, so it needs its own ."
+      + cls + "[hidden]{display:none} companion rule or .hidden = true silently "
+      + "stops hiding it, exactly as it would for .add-photo-empty without one");
   }
 })();
 

@@ -484,6 +484,9 @@
   .font-legend{display:flex;align-items:center;gap:6px;padding:6px 10px 2px;
     font-size:10.5px;line-height:15px;color:var(--mute);border-top:1px solid var(--line-2);margin-top:3px}
   .font-legend .style-warn{position:static;top:auto;left:auto}
+  /* display:flex beats [hidden]'s UA display:none the same way .add-photo-empty
+     does; legend.hidden=!anyMissing painted nothing without this. */
+  .font-legend[hidden]{display:none}
   .style-menu-group-title{
     display:block;padding:3px 10px 2px;font-size:9.5px;font-weight:700;
     letter-spacing:.06em;text-transform:uppercase;color:var(--mute);
