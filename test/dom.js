@@ -2481,6 +2481,15 @@ check(!/state\s*=\s*migrate\(/.test(SCRIPT),
   check(sheetCSS && /aspect-ratio:var\(--page-ar/.test(sheetCSS[0]),
     ".sheet declares aspect-ratio:var(--page-ar…) — the box itself takes the "
     + "page's shape now, not the svg inside it — got: " + (sheetCSS && sheetCSS[0]));
+  /* .sheet is the chrome/document boundary: it is the exported page, not a
+     panel of the app, and it never themes — a dark scheme changes the chrome
+     around it and leaves the page itself literal white. Asserted as the
+     literal background:#fff rather than the absence of "var(", so a rewrite
+     that reads some OTHER custom property still fails this. */
+  check(sheetCSS && /background:#fff(?![0-9a-fA-F])/.test(sheetCSS[0])
+     && !/background:var\(/.test(sheetCSS[0]),
+    ".sheet keeps a literal background:#fff — the chrome/document boundary, "
+    + "the exported page never themes — got: " + (sheetCSS && sheetCSS[0]));
 
   const sheetSvgCSS = /\.sheet > svg\{[^}]*\}/.exec(MARKUP);
   check(!!sheetSvgCSS, "the .sheet > svg rule is found in the stylesheet");
@@ -4489,8 +4498,9 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
        than as the absence of the modifier: a rule added to .split-toggle
        itself would leave the modifier untouched and pass that. Export is not
        among these — it has no caret element at all. */
-    check(/\.split-toggle\{[^}]*background:#fff/.test(CSS),
-      "Save's caret is still white — .split-toggle itself is untouched");
+    check(/\.split-toggle\{[^}]*background:var\(--surface\)/.test(CSS)
+       && /--surface:#ffffff;/.test(CSS),
+      "Save's caret is still white — .split-toggle reads --surface, and --surface is still #ffffff");
     check(!/\.split-toggle\{[^}]*[;{]\s*color:#fff/.test(CSS)
        && !/\.split-toggle\{[^}]*background:var\(--brand\)/.test(CSS),
       "the shared class carries neither the fill nor the white glyph — the two "

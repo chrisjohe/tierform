@@ -3962,6 +3962,124 @@ try{
       "the ratio is symmetric");
   }
 
+  /* ------------------------------------------------ 8. contrast class (light scheme) */
+
+  /* Dark Mode step (a) tokenised the chrome literals onto :root custom
+     properties with ZERO visual change — no dark values exist yet. This proves
+     the contrast MACHINERY over that tokenised sheet before a single dark
+     value is written: every rule that fills a background from a resolvable
+     token, paired with whatever ink lands on that same rule (read structurally
+     out of the CSS text, never retyped), clears CONTRAST_MIN today. A later
+     step that redefines these same tokens for `prefers-color-scheme:dark`
+     inherits this exact check with nothing to rewrite — if it goes red then,
+     that is the point of building it now. */
+  {
+    const CSS8 = ((/<style>([\s\S]*?)<\/style>/.exec(HTML) || ["", ""])[1])
+      .replace(/\/\*[\s\S]*?\*\//g, " ");
+
+    const rootMatch = /:root\{([^}]*)\}/.exec(CSS8);
+    check(!!rootMatch, "the :root token block is found in the stylesheet");
+    const TOKENS = {};
+    if(rootMatch){
+      const re = /--([A-Za-z0-9-]+)\s*:\s*([^;]+);/g;
+      let m;
+      while((m = re.exec(rootMatch[1]))){
+        const val = m[2].trim();
+        if(/^#[0-9A-Fa-f]{6}$/.test(val)) TOKENS["--" + m[1]] = val;
+      }
+    }
+    check(!!TOKENS["--ink"] && !!TOKENS["--surface"]
+       && !!TOKENS["--inverse-bg"] && !!TOKENS["--inverse-ink"],
+      "the token map resolves --ink, --surface, --inverse-bg and --inverse-ink "
+      + "— got " + JSON.stringify(Object.keys(TOKENS)));
+
+    const C2 = new Function(
+      grabFn("luminance") + "\n" + grabFn("contrastRatio") + "\n" +
+      grabConst("CONTRAST_MIN") + "\n" +
+      "return {luminance, contrastRatio, CONTRAST_MIN};")();
+
+    /* One rule at a time: selector { declarations }. A comment holding a
+       literal "{" (there is one, describing `.p-name{`) would derail a naive
+       split, which is why CSS8 above had every comment blanked out first. An
+       @media wrapper's own "(...)" {" is simply never matched as a rule — the
+       scan just resumes at the next real selector, which is exactly the rules
+       nested inside it. */
+    const ruleRe = /([^{}]+)\{([^{}]*)\}/g;
+    const allRules = [];
+    let rm0;
+    while((rm0 = ruleRe.exec(CSS8))) allRules.push([rm0[1].trim(), rm0[2]]);
+
+    /* A :hover / [aria-expanded="true"] rule routinely restates only what
+       changed and leaves `color` to the cascade — button.big.rb-primary's own
+       white ink is not repeated by button.big.rb-primary:hover, which fills
+       darker but is still white text on it. The literal-ink skip (bucket 1)
+       has to see that inheritance or it wrongly assumes such a rule falls
+       back to page ink, which is how --brand-dark ends up "paired" with
+       --ink at 1.11:1 — a pairing nothing on screen ever draws. So: a first
+       pass records, for every comma-branch of every rule that states its own
+       literal (non-var) color, the BASE selector with any trailing pseudo-
+       classes and attribute selectors stripped; the second pass below treats
+       a colorless rule as bucket 1 too when one of ITS comma-branches' base
+       selectors is in that set. */
+    const LITERAL_INK_BASE = new Set();
+    const baseSelector = part => part.trim()
+      .replace(/(:[a-zA-Z-]+(\([^)]*\))?|\[[^\]]*\])+$/, "").trim();
+    allRules.forEach(([sel, body]) => {
+      const decls = body.split(";").map(d => d.trim()).filter(Boolean);
+      const colorDecl = decls.find(d => /^color\s*:/.test(d));
+      if(!colorDecl || /var\(/.test(colorDecl)) return;
+      sel.split(",").forEach(part => LITERAL_INK_BASE.add(baseSelector(part)));
+    });
+
+    const pairs = new Map();          // "bgToken|inkToken" -> [inkToken, bgToken]
+    allRules.forEach(([sel, body]) => {
+      const decls = body.split(";").map(d => d.trim()).filter(Boolean);
+      const bgDecl = decls.find(d => /^background(-color)?\s*:/.test(d));
+      if(!bgDecl) return;
+      /* A gradient argument (.canvas-wrap's dot grid) is decoration painted
+         UNDER the page, never a surface text sits on — the spec puts it out
+         of scope on purpose, and the naive first-var() read would otherwise
+         pair --dot with whatever ink happens to fall out of the scan, a
+         pairing nothing on screen ever draws. The real surface underneath
+         .canvas-wrap is var(--shell), and the body rule already covers that
+         pairing, so skipping the whole rule loses nothing. */
+      if(/gradient\(/.test(bgDecl)) return;
+      const bgVar = /var\(\s*(--[A-Za-z0-9-]+)\s*\)/.exec(bgDecl);
+      if(!bgVar || !(bgVar[1] in TOKENS)) return;   // literal background (.sheet) or an unresolved token — out of scope
+      const xName = bgVar[1];
+
+      const colorDecl = decls.find(d => /^color\s*:/.test(d));
+      let yName;
+      if(colorDecl){
+        const colVar = /var\(\s*(--[A-Za-z0-9-]+)\s*\)/.exec(colorDecl);
+        if(colVar && (colVar[1] in TOKENS)) yName = colVar[1];
+        else return;   // bucket 1: a literal ink on a coloured fill is deliberate (avatar initials etc.) — skip
+      }else{
+        const inheritsLiteral = sel.split(",").some(part => LITERAL_INK_BASE.has(baseSelector(part)));
+        if(inheritsLiteral) return;   // bucket 1 again: inherited literal ink (a :hover with no color of its own)
+        if(!("--ink" in TOKENS)) return;
+        yName = "--ink";   // no color declared or inherited — the page's own ink
+      }
+      pairs.set(xName + "|" + yName, [yName, xName]);
+    });
+
+    const distinctPairs = Array.from(pairs.values());
+    check(distinctPairs.length >= 6,
+      "the class check finds at least 6 distinct token pairs — a parser that "
+      + "finds nothing must fail, not pass vacuously — got " + distinctPairs.length);
+    check(pairs.has("--inverse-bg|--inverse-ink"),
+      "the (--inverse-bg, --inverse-ink) pair is among them — the second source "
+      + "proving .g-code's and .toast's inverse decoupling actually parses");
+
+    distinctPairs.forEach(([y, x]) => {
+      const fg = TOKENS[y], bg = TOKENS[x];
+      const ratio = C2.contrastRatio(fg, bg);
+      check(ratio !== null && ratio >= C2.CONTRAST_MIN,
+        "chrome pair " + y + " on " + x + " clears AA — got "
+        + (ratio === null ? "null" : ratio.toFixed(2) + ":1"));
+    });
+  }
+
 }catch(e){
   failures.push("the suite threw before finishing: " + ((e && e.message) || e));
 }
