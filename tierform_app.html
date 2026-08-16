@@ -32,7 +32,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>TIERFORM</title>
 <meta name="description" content="Build a team chart from a roster of names and photos. Runs entirely in your browser.">
-<meta name="color-scheme" content="light">
+<meta name="color-scheme" content="light dark">
 <!-- The tab icon is the TIERFORM mark on the same tile the title bar draws it
      on: white on --brand reads against a light and a dark tab strip alike,
      where the mark's own dark fill sinks into a dark one. It is a data URI
@@ -82,6 +82,13 @@
                               badge fill must be able to part from muted text
                               in a dark scheme */
     --badge-ink:#ffffff;
+    --seam:#ffffff;   /* the seam between the primary split button's halves —
+                          white on the brand fill; the dark scheme softens it
+                          to translucent white so it separates without glaring */
+    --brand-mark:#003153;  /* deliberate duplicate of --brand, like --brand-ink
+                               — but where --brand-ink lifts in the dark, the
+                               mark refuses: the brand's artwork appears true
+                               or white, never a third colour */
     --hot:rgba(var(--brand-rgb),.05);         /* hover wash: drop zones, start cards */
     --hot-strong:rgba(var(--brand-rgb),.06);  /* the canvas-wide drop wash */
     --focus-glow:rgba(var(--brand-rgb),.12);  /* focus ring glow on text fields */
@@ -374,11 +381,11 @@
      The open state darkens rather than taking .split-toggle's own near-white
      --line-2 fill, which would punch a hole in the control. */
   button.split-toggle.rb-primary-toggle{
-    background:var(--brand);border-color:var(--brand);border-left-color:#fff;color:#fff;
+    background:var(--brand);border-color:var(--brand);border-left-color:var(--seam);color:#fff;
   }
   button.split-toggle.rb-primary-toggle:hover,
   button.split-toggle.rb-primary-toggle[aria-expanded="true"]{
-    background:var(--brand-dark);border-color:var(--brand-dark);border-left-color:#fff;
+    background:var(--brand-dark);border-color:var(--brand-dark);border-left-color:var(--seam);
   }
   /* Fixed, not absolute, and placed by openMenu() rather than by `top:100%`.
      .rb-pane carries overflow-x:auto for the wide tabs, and CSS turns the other
@@ -628,8 +635,8 @@
      `fill:currentColor` is what carries `color` to the path — it does not
      inherit, and this mark carries no `.ic` to supply it.
      78x65 is the artwork's own 2343x1952 ratio, so nothing letterboxes. */
-  .about-mark{width:78px;height:65px;fill:currentColor;margin:2px 0 7px;color:var(--brand-ink)}
-  .about-wordmark{color:var(--brand-ink);font-size:20px;font-weight:600;letter-spacing:.30em;margin-left:.30em}
+  .about-mark{width:78px;height:65px;fill:currentColor;margin:2px 0 7px;color:var(--brand-mark)}
+  .about-wordmark{color:var(--brand-mark);font-size:20px;font-weight:600;letter-spacing:.30em;margin-left:.30em}
   .about-version{font-size:14px;margin:14px 0 5px!important;color:var(--ink)}
   .about-copy{font-size:13px;line-height:1.5;margin-bottom:12px!important;color:var(--ink)}
   /* .info-link is the Bug report document's advisory link, and it rides along
@@ -778,7 +785,8 @@
     padding-bottom:6px;border-bottom:1px solid var(--line-2);
   }
   .th .code{margin-right:3px;
-    font-size:11px;font-weight:700;letter-spacing:.06em;color:#fff;background:var(--ink-2);
+    font-size:11px;font-weight:700;letter-spacing:.06em;
+    background:var(--inverse-bg);color:var(--inverse-ink);
     border-radius:3px;padding:2px 6px;
   }
   .th .nm{font-size:12.5px;font-weight:600}
@@ -1152,6 +1160,28 @@
     display:flex;flex-direction:column;align-items:center;justify-content:center;
     min-height:100%;width:1600px;max-width:100%;box-sizing:border-box;padding:44px 26px;text-align:center;
   }
+  /* The start view sits ON the sheet, and the sheet never themes — this
+     re-declares every custom property the .sheet-empty subtree actually
+     reads (the two template-card states, the Privacy button, both text
+     tones) at its light :root value, byte for byte, so the whole island
+     renders identically in both colour schemes. Not a color:var(--ink) here:
+     every piece of text in this subtree already sets its own colour (or, for
+     the two buttons, inherits it from a rule matching that button directly),
+     so nothing here relies on inherited body ink — only the custom
+     properties those rules read need pinning. test/fixtures.js §8 holds
+     this list against the light :root byte for byte, so it cannot drift
+     out from under it unnoticed. */
+  .sheet-empty{
+    --ink:#12161c;
+    --ink-2:#2a323d;
+    --mute:#6b7480;
+    --line:#dfe3e8;
+    --surface:#ffffff;
+    --hover:#f7f8f9;
+    --hover-line:#cfd5dc;
+    --brand-ink:#003153;
+    --hot:rgba(var(--brand-rgb),.05);
+  }
   .start-heading{margin:0 0 8px;font-size:19px;font-weight:600;color:var(--ink)}
   .start-lead{margin:0 0 26px;font-size:13px;line-height:1.5;color:var(--mute);max-width:320px}
   /* auto-fit rather than a fixed column count: on the landscape page's own
@@ -1342,6 +1372,47 @@
      ring. */
   .fp-circle:focus-visible{outline:2px solid var(--brand-ink);outline-offset:2px}
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+  /* The dark scheme redefines TOKENS and nothing else — no selector may
+     appear in here except :root, so the document (.sheet, the checkerboard)
+     cannot be themed from this block even by accident. The brand does not
+     move: --brand/--brand-dark/--brand-rgb keep their light values, the
+     fills stay Prussian blue under white ink in both schemes. The inverse
+     pair FLIPS (light toast, light code badges on dark chrome). Every
+     fg/bg pair here is proven >= 4.5:1 by test/fixtures.js §8, which runs
+     the same structural pair scan against both schemes. */
+  @media (prefers-color-scheme: dark){
+    :root{
+      --ink:#e2e5e9;
+      --ink-2:#c4cad2;
+      --mute:#97a0aa;
+      --line:#3a3f45;
+      --line-2:#31353a;
+      --surface:#24272b;
+      --shell:#1b1d20;
+      --warn:#eda2ae;
+      --warn-tint:#35191e;
+      --warn-line:#5c2c36;
+      --ava-grey:#4a5158;
+      --hover:#2c3035;
+      --hover-faint:#282b2f;
+      --hover-line:#4b525a;
+      --ava-grey-hover:#5a626b;
+      --drop-line:#4b525a;
+      --drop-bg:#26292d;
+      --dot:#33373d;
+      --inverse-bg:#e2e5e9;
+      --inverse-ink:#1b1d20;
+      --brand-ink:#7fb0d8;
+      --badge-bg:#a5aeb8;
+      --badge-ink:#16181b;
+      --seam:rgba(255,255,255,.45);
+      --brand-mark:#ffffff;
+      --hot:rgba(127,176,216,.10);
+      --hot-strong:rgba(127,176,216,.13);
+      --focus-glow:rgba(127,176,216,.30);
+    }
+  }
 </style>
 <style id="fontcss">
 /* Open Sans, bundled (see NOTICE): the variable font as a WOFF2 data URI, so

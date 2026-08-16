@@ -3980,11 +3980,15 @@ try{
     const rootMatch = /:root\{([^}]*)\}/.exec(CSS8);
     check(!!rootMatch, "the :root token block is found in the stylesheet");
     const TOKENS = {};
+    const LIGHT_NAMES = new Set();   // every custom property NAME the light :root declares, hex or not
+    const LIGHT_RAW = {};            // every declared value verbatim, hex or not — for byte-for-byte island comparison
     if(rootMatch){
       const re = /--([A-Za-z0-9-]+)\s*:\s*([^;]+);/g;
       let m;
       while((m = re.exec(rootMatch[1]))){
         const val = m[2].trim();
+        LIGHT_NAMES.add("--" + m[1]);
+        LIGHT_RAW["--" + m[1]] = val;
         if(/^#[0-9A-Fa-f]{6}$/.test(val)) TOKENS["--" + m[1]] = val;
       }
     }
@@ -4090,14 +4094,100 @@ try{
     check(TOKENS["--badge-bg"] === TOKENS["--mute"],
       "in the light scheme, --badge-bg still equals --mute byte for byte — got "
       + TOKENS["--badge-bg"] + " vs " + TOKENS["--mute"]);
+    /* Dark Mode step (b2) owner correction (B): --brand-mark is the same
+       deliberate duplicate, this time of --brand itself — the mark's true
+       colour, before a dark scheme refuses to lift it and swaps it for white
+       instead. Also a light-scheme-only claim; the dark step diverges it on
+       purpose. */
+    check(TOKENS["--brand-mark"] === TOKENS["--brand"],
+      "in the light scheme, --brand-mark still equals --brand byte for byte — got "
+      + TOKENS["--brand-mark"] + " vs " + TOKENS["--brand"]);
 
-    distinctPairs.forEach(([y, x]) => {
-      const fg = TOKENS[y], bg = TOKENS[x];
-      const ratio = C2.contrastRatio(fg, bg);
-      check(ratio !== null && ratio >= C2.CONTRAST_MIN,
-        "chrome pair " + y + " on " + x + " clears AA — got "
-        + (ratio === null ? "null" : ratio.toFixed(2) + ":1"));
+    /* Dark Mode step (b2): the @media (prefers-color-scheme: dark) block
+       redefines a subset of these same tokens. Parsed the same way as the
+       light :root above, out of the same CSS8 text (comments already
+       blanked, so the block's own comment needs no re-stripping here). */
+    const darkMediaMatch = /@media\s*\(prefers-color-scheme:\s*dark\)\s*\{([\s\S]*)\}\s*$/.exec(CSS8);
+    const darkRootMatch = darkMediaMatch ? /:root\{([^}]*)\}/.exec(darkMediaMatch[1]) : null;
+    check(!!darkMediaMatch && !!darkRootMatch,
+      "the @media (prefers-color-scheme: dark) block and its own :root rule "
+      + "are both found in the stylesheet");
+
+    const DARK_OVERRIDES = {};   // every declared name in the dark :root, any value shape
+    const DARK_TOKENS = Object.assign({}, TOKENS);   // light tokens, overridden by the dark block's hex values
+    if(darkRootMatch){
+      const re3 = /--([A-Za-z0-9-]+)\s*:\s*([^;]+);/g;
+      let m3;
+      while((m3 = re3.exec(darkRootMatch[1]))){
+        const name = "--" + m3[1];
+        const val = m3[2].trim();
+        DARK_OVERRIDES[name] = val;
+        if(/^#[0-9A-Fa-f]{6}$/.test(val)) DARK_TOKENS[name] = val;
+      }
+    }
+    const overrideNames = Object.keys(DARK_OVERRIDES);
+
+    check(overrideNames.length > 0 && overrideNames.every(n => LIGHT_NAMES.has(n)),
+      "every dark-block override name exists in the light map — a token defined "
+      + "only in the dark scheme would be undefined in light, a token with no "
+      + "resting value — got " + JSON.stringify(overrideNames.filter(n => !LIGHT_NAMES.has(n))));
+    check("--surface" in DARK_OVERRIDES && "--ink" in DARK_OVERRIDES,
+      "the dark block redefines both --surface and --ink — a \"dark mode\" that "
+      + "darkens neither is not one — got " + JSON.stringify(overrideNames));
+    check(!("--brand" in DARK_OVERRIDES) && !("--brand-dark" in DARK_OVERRIDES)
+       && !("--brand-rgb" in DARK_OVERRIDES),
+      "the brand does not move: --brand, --brand-dark and --brand-rgb are absent "
+      + "from the dark overrides — got " + JSON.stringify(overrideNames));
+
+    /* Same pair set, two value environments: the rules that define WHAT sits
+       on WHAT are scheme-independent, so distinctPairs is parsed once above
+       and walked twice here, against TOKENS and then against DARK_TOKENS. */
+    [["light", TOKENS], ["dark", DARK_TOKENS]].forEach(([scheme, TOK]) => {
+      distinctPairs.forEach(([y, x]) => {
+        const fg = TOK[y], bg = TOK[x];
+        const ratio = C2.contrastRatio(fg, bg);
+        check(ratio !== null && ratio >= C2.CONTRAST_MIN,
+          "chrome pair " + y + " on " + x + " clears AA in the " + scheme + " scheme — got "
+          + (ratio === null ? "null" : ratio.toFixed(2) + ":1"));
+      });
     });
+
+    /* Dark Mode step (b2) owner correction (C): the start view is a light
+       island. .sheet-empty carries a SECOND rule (not the layout one above
+       it) that re-declares every custom property its subtree actually
+       consumes at the light :root's own raw value — the page never themes,
+       so this island must equal the light scheme byte for byte in BOTH
+       schemes, not just clear a contrast ratio. Located by content rather
+       than position: the layout .sheet-empty{…} rule declares no custom
+       property at all, so the block that does is unambiguous. */
+    const sheetEmptyBlocks = [];
+    const seRe = /\.sheet-empty\{([^}]*)\}/g;
+    let sm;
+    while((sm = seRe.exec(CSS8))) sheetEmptyBlocks.push(sm[1]);
+    const islandBody = sheetEmptyBlocks.find(b => /--[A-Za-z0-9-]+\s*:/.test(b)) || null;
+
+    const ISLAND_TOKENS = {};
+    if(islandBody){
+      const re4 = /--([A-Za-z0-9-]+)\s*:\s*([^;]+);/g;
+      let m4;
+      while((m4 = re4.exec(islandBody))) ISLAND_TOKENS["--" + m4[1]] = m4[2].trim();
+    }
+    const islandNames = Object.keys(ISLAND_TOKENS);
+
+    check(!!islandBody && islandNames.length > 0
+       && islandNames.indexOf("--ink") >= 0 && islandNames.indexOf("--surface") >= 0,
+      "the .sheet-empty island re-pin rule exists and is non-empty, naming at "
+      + "least --ink and --surface — the page never themes, so the start view "
+      + "needs its own light-locked token set — got " + JSON.stringify(islandNames));
+    check(islandNames.every(n => LIGHT_NAMES.has(n)),
+      "every re-pinned island token name exists in the light :root — a name "
+      + "found nowhere in light would be the start view inventing a token, "
+      + "not locking one — got " + JSON.stringify(islandNames.filter(n => !LIGHT_NAMES.has(n))));
+    check(islandNames.every(n => ISLAND_TOKENS[n] === LIGHT_RAW[n]),
+      "every re-pinned island value equals the light :root's own raw value "
+      + "byte for byte — a drifted island value is the start view quietly "
+      + "theming — got " + JSON.stringify(islandNames.filter(n => ISLAND_TOKENS[n] !== LIGHT_RAW[n])
+          .map(n => n + ": island=" + ISLAND_TOKENS[n] + " light=" + LIGHT_RAW[n])));
   }
 
 }catch(e){

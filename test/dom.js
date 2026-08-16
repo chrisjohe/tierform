@@ -3409,11 +3409,81 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
     check(!/dashed var\(--brand\)/.test(CSS),
       "neither dashed drop-slot border still reads the raw --brand — both are "
       + "ink/border sites on a white or grey surface, not a brand fill");
-    check((afterRoot.match(/rgba\(var\(--brand-rgb\)/g) || []).length === 0,
-      "no rule outside :root still spells out rgba(var(--brand-rgb),alpha) directly — "
-      + "the three definitions inside :root (--hot, --hot-strong, --focus-glow) are the "
-      + "only home for those tints, so a dark scheme can swap them for washes that are "
-      + "actually visible without hunting down a raw rgba() someplace else");
+    /* Dark Mode step (b2) owner correction (C) opened one deliberate second
+       home for this raw expression: the .sheet-empty light-island re-pin
+       copies --hot's byte value verbatim so the start view stays light-
+       locked. That copy is excised before the scan below rather than
+       loosening it — test/fixtures.js §8's island check is what actually
+       proves the copy stays byte-identical to :root, so this scan can stay
+       a hard zero everywhere else. */
+    const islandBlockMatch = /\.sheet-empty\{[^}]*--[A-Za-z0-9-]+\s*:[^}]*\}/.exec(afterRoot);
+    const rgbaScanText = islandBlockMatch
+      ? afterRoot.slice(0, islandBlockMatch.index) + afterRoot.slice(islandBlockMatch.index + islandBlockMatch[0].length)
+      : afterRoot;
+    check((rgbaScanText.match(/rgba\(var\(--brand-rgb\)/g) || []).length === 0,
+      "no rule outside :root — and outside the .sheet-empty light-island re-pin, its own "
+      + "deliberate byte-pinned second home — still spells out rgba(var(--brand-rgb),alpha) "
+      + "directly; the three definitions inside :root (--hot, --hot-strong, --focus-glow) "
+      + "are the only STANDING home for those tints, so a dark scheme can swap them for "
+      + "washes that are actually visible without hunting down a raw rgba() someplace else");
+  }
+
+  /* Dark Mode step (b2): the dark block itself may redefine TOKENS and
+     nothing else — no selector but :root may appear inside it, or the
+     document (.sheet, the checkerboard) could be themed from a block the
+     app promises never touches it. */
+  {
+    const css = /<style>([\s\S]*?)<\/style>/.exec(MARKUP);
+    const CSS = css ? css[1] : "";
+
+    const darkOccur = (CSS.match(/@media\s*\(prefers-color-scheme:\s*dark\)/g) || []).length;
+    check(darkOccur === 1,
+      "the @media (prefers-color-scheme: dark) block occurs exactly once in the "
+      + "whole file — got " + darkOccur);
+
+    const darkOuterMatch = /@media\s*\(prefers-color-scheme:\s*dark\)\s*\{([\s\S]*)\}\s*$/.exec(CSS);
+    const darkInner = darkOuterMatch ? darkOuterMatch[1] : "";
+    const darkInnerNoComments = darkInner.replace(/\/\*[\s\S]*?\*\//g, "");
+    check(!!darkOuterMatch && /^\s*:root\{[^{}]*\}\s*$/.test(darkInnerNoComments),
+      "the dark scheme may redefine tokens only; a selector hiding in here (a "
+      + ".sheet override, say) would theme the document, and the exported page "
+      + "never themes — got: " + JSON.stringify(darkInnerNoComments.slice(0, 200)));
+
+    const rootInnerMatch = /^\s*:root\{([^{}]*)\}\s*$/.exec(darkInnerNoComments);
+    const rootDecls = rootInnerMatch
+      ? rootInnerMatch[1].split(";").map(d => d.trim()).filter(Boolean)
+      : [];
+    check(rootDecls.length > 0 && rootDecls.every(d => /^--/.test(d)),
+      "every declaration inside the dark :root is a custom property (starts with "
+      + "--) — a plain property here would be a literal style rule smuggled into "
+      + "a token-only block — got " + JSON.stringify(rootDecls));
+
+    const colorSchemeDarkCount = (MARKUP.match(/<meta name="color-scheme" content="light dark">/g) || []).length;
+    const colorSchemeLightOnlyCount = (MARKUP.match(/<meta name="color-scheme" content="light">/g) || []).length;
+    check(colorSchemeDarkCount === 1 && colorSchemeLightOnlyCount === 0,
+      "<meta name=\"color-scheme\" content=\"light dark\"> occurs exactly once, with "
+      + "no content=\"light\"-only variant left — this is the UA half of dark mode: "
+      + "selects, checkboxes, the angle slider and every scrollbar repaint from this "
+      + "one attribute; pinned so it cannot silently revert to a dark app with white "
+      + "dropdowns — got " + colorSchemeDarkCount + " dark-variant, "
+      + colorSchemeLightOnlyCount + " light-only");
+  }
+
+  /* Dark Mode step (b2) owner correction (D): the roster panel's grade
+     badge (.th .code) now shares the ribbon chip's own inverse pair,
+     --inverse-bg/--inverse-ink, instead of a literal #fff over --ink-2 that
+     would wash out once --ink-2 lightens in the dark. The §8 contrast scan
+     already proves that pair via .g-code/.toast; what is pinned here is
+     that .th .code actually reads it rather than restating a literal. */
+  {
+    const css = /<style>([\s\S]*?)<\/style>/.exec(MARKUP);
+    const CSS = css ? css[1] : "";
+    const thCode = /\.th \.code\{[^}]*\}/.exec(CSS);
+    check(!!thCode && /background:var\(--inverse-bg\)/.test(thCode[0])
+       && /color:var\(--inverse-ink\)/.test(thCode[0]),
+      "the roster badge and the chip badge are one look, and both flip "
+      + "together in the dark — a literal here is how they drift apart "
+      + "again — got: " + JSON.stringify(thCode ? thCode[0] : null));
   }
 }
 
@@ -4504,9 +4574,14 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
     /* The face gives up its right border to this one, so it is the seam. */
     check(/\.split > \.big\{[^}]*border-right:none/.test(CSS),
       "the face still has no right border — the caret's left border is the seam");
-    check(/button\.split-toggle\.rb-primary-toggle\{[^}]*border-left-color:#fff/.test(CSS),
-      "which is white here: a hairline is what still shows where the menu begins "
-      + "once both halves are filled");
+    /* Dark Mode step (b2) owner correction (A): the seam moved off a literal
+       #fff onto --seam — a two-source pin, the rule reading var(--seam) and
+       :root stating its light value #ffffff, so a dark scheme can soften the
+       hairline instead of glaring, without a literal hiding in the rule. */
+    check(/button\.split-toggle\.rb-primary-toggle\{[^}]*border-left-color:var\(--seam\)/.test(CSS)
+       && /--seam:#ffffff;/.test(CSS),
+      "which reads var(--seam) here, #ffffff in :root today: a hairline is what "
+      + "still shows where the menu begins once both halves are filled");
     /* Open state. .split-toggle's own is var(--line-2), a near-white that would
        punch a hole in the blue, so the modifier has to answer for it too. */
     {
@@ -4518,8 +4593,9 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
         + "is a near-white and would punch a hole in the blue when the menu opens");
       check(open && /background:var\(--brand-dark\)/.test(open[0]),
         "…and that fill is a darkening of the brand, the same move the face makes on hover");
-      check(open && /border-left-color:#fff/.test(open[0]),
-        "…with the white seam kept, so the divider does not vanish while the menu is open");
+      check(open && /border-left-color:var\(--seam\)/.test(open[0]),
+        "…with the seam token kept, not a literal, so the divider does not vanish "
+        + "while the menu is open in either colour scheme");
       check(!/button\.split-toggle\.rb-primary-toggle[^{]*\{[^}]*[;{]\s*color:var\(--ink-2\)/.test(CSS),
         "and nothing puts --ink-2 back on the glyph in either state");
     }
@@ -6232,18 +6308,20 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
     check(/<svg class="about-mark" aria-hidden="true"><use href="#i-logo"\/><\/svg>/.test(about)
        && !/<img\b/i.test(about),
       "About draws the mark from the sprite's one symbol, silent beside the wordmark");
-    /* Both of these said "green". The About mark takes var(--brand-ink), and
-       --brand-ink is #003153 — so the word described neither the rule being
+    /* Both of these said "green". The About mark takes var(--brand-mark), and
+       --brand-mark is #003153 — so the word described neither the rule being
        checked nor the colour on screen, and would have gone on describing
-       neither for any value of --brand-ink. The colour is read out of the
+       neither for any value of --brand-mark. The colour is read out of the
        sheet and named in the message instead, which is a claim that can be
-       wrong. --brand-ink, not --brand: the mark reads on a chrome surface,
-       so it takes the token a dark scheme can lift without touching the
-       brand FILLS (titlebar, primary buttons), which stay --brand. */
-    const brandInkHex = (/--brand-ink:(#[0-9A-Fa-f]{6})/.exec(CSS) || [])[1];
-    check(/\.about-mark\{[^}]*width:78px;[^}]*height:65px;[^}]*color:var\(--brand-ink\)/.test(CSS),
-      "the About mark keeps the box the placeholder reserved and takes the app's own brand-ink "
-      + "colour (" + brandInkHex + ") through `color`, so one symbol can serve both homes");
+       wrong. --brand-mark, not --brand-ink: the mark is the brand's own
+       artwork, never a lifted third colour — a dark scheme may only swap it
+       for white, the same true-or-white rule the titlebar's own mark
+       follows, while --brand-ink stays the lifted-blue token every other
+       chrome-surface ink site keeps using. */
+    const brandMarkHex = (/--brand-mark:(#[0-9A-Fa-f]{6})/.exec(CSS) || [])[1];
+    check(/\.about-mark\{[^}]*width:78px;[^}]*height:65px;[^}]*color:var\(--brand-mark\)/.test(CSS),
+      "the About mark keeps the box the placeholder reserved and takes the app's own brand-mark "
+      + "colour (" + brandMarkHex + ") through `color`, so one symbol can serve both homes");
     /* This file is the real mark, not the flat placeholder, and what is
        load-bearing follows from that: nothing loads sprites/logo.svg, so it
        cannot break visibly — it can only go stale against the copy that
