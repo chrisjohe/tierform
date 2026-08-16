@@ -2505,6 +2505,46 @@ check(!/state\s*=\s*migrate\(/.test(SCRIPT),
     "the descendant form .sheet svg{ is gone — it would swallow every "
     + "start-view icon whose own rule is weaker than 0,1,1");
 
+  /* .sheet.start is the class drawChart's empty branch adds and its draw
+     branch removes (checked below, on drawChart's own source). CSS lets
+     min-height win over max-height when the two conflict, so this keeps
+     .sheet's fitted chart-state solve — max-height:100% still supplies the
+     transferred cap — right up until the start content genuinely needs more
+     height, at which point growing past that box is what lets .canvas-wrap
+     scroll the stage instead of the white page scrolling itself. */
+  const sheetStartCSS = /\.sheet\.start\{[^}]*\}/.exec(MARKUP);
+  check(!!sheetStartCSS, "the .sheet.start rule is found in the stylesheet");
+  check(sheetStartCSS && /min-height:min-content/.test(sheetStartCSS[0]),
+    ".sheet.start declares min-height:min-content — min beats max, which is "
+    + "what lets the stage scroll instead of the page — got: "
+    + (sheetStartCSS && sheetStartCSS[0]));
+
+  /* .sheet-empty used to float at its own content width and scroll inside
+     itself; both moved out — see the stylesheet comment above .sheet-empty
+     for the full mechanism (intrinsic-width neutralisation via
+     width:0;min-width:100%, and min-height so .sheet.start can still grow
+     the box). */
+  const sheetEmptyCSS = /\.sheet-empty\{[^}]*\}/.exec(MARKUP);
+  check(!!sheetEmptyCSS, "the .sheet-empty rule is found in the stylesheet");
+  check(sheetEmptyCSS && !/overflow/.test(sheetEmptyCSS[0]),
+    ".sheet-empty declares no overflow — the scroll moved to .canvas-wrap, "
+    + "the stage, not the white page — got: "
+    + (sheetEmptyCSS && sheetEmptyCSS[0]));
+  check(sheetEmptyCSS && /min-height:100%/.test(sheetEmptyCSS[0]),
+    ".sheet-empty declares min-height:100%, not height:100% — the fitted box "
+    + "still fills at short content but yields to .sheet.start's "
+    + "min-height:min-content when the content is tall — got: "
+    + (sheetEmptyCSS && sheetEmptyCSS[0]));
+  check(sheetEmptyCSS && /width:0/.test(sheetEmptyCSS[0]),
+    ".sheet-empty declares width:0 — a percentage min-width counts as 0 "
+    + "during intrinsic sizing only when width itself supplies no definite "
+    + "one, which is what stops the start view dictating the page's size — "
+    + "got: " + (sheetEmptyCSS && sheetEmptyCSS[0]));
+  check(sheetEmptyCSS && /min-width:100%/.test(sheetEmptyCSS[0]),
+    ".sheet-empty declares min-width:100% — it wins at used-value time so "
+    + "the box still fills the sheet exactly — got: "
+    + (sheetEmptyCSS && sheetEmptyCSS[0]));
+
   /* drawChart is the only thing that can tell CSS which page shape is
      loaded. The empty branch is a full landscape page in its own right, the
      app's own default shape, so it sets the property too, from a fixed
@@ -2523,6 +2563,18 @@ check(!/state\s*=\s*migrate\(/.test(SCRIPT),
       + "landscape page, not a content-sized card");
     check(/PAGES\["landscape"\]\.w \/ PAGES\["landscape"\]\.h/.test(draw[0]),
       "…and reads that landscape ratio from PAGES rather than a copied number");
+    /* .sheet.start's min-height:min-content only stays honest as a pair with
+       its removal below — leaving it on a chart drawn after the start view
+       would keep the sheet's fitted geometry hostage to a class nothing
+       ever turns off. */
+    const startAdd = /classList\.add\("start"\)/.test(draw[0]);
+    const startRemove = /classList\.remove\("start"\)/.test(draw[0]);
+    check(startAdd && startRemove,
+      "drawChart adds #sheet's \"start\" class in the empty branch and "
+      + "removes it in the draw branch — half the pair missing leaves a "
+      + "chart drawn after the start view stuck at min-height:min-content, "
+      + "a lie waiting for a tall chart to overflow — got add:" + startAdd
+      + " remove:" + startRemove);
   }
 }
 

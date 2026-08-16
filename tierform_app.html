@@ -1084,6 +1084,16 @@
     box-shadow:0 1px 2px rgba(16,22,30,.06),0 12px 32px rgba(16,22,30,.09);
     border-radius:2px;padding:6px;
   }
+  /* .sheet.start marks the state drawChart's empty branch puts #sheet in
+     (see the "start" class pair down there). CSS resolves a min-height/
+     max-height conflict by letting min-height win, so this keeps .sheet's
+     fitted solve — max-height:100% still supplies the transferred cap that
+     narrows the page at short windows, byte-identical geometry to a drawn
+     chart — right up until the start content genuinely needs more height
+     than that box gives it. Past that point the sheet grows past the
+     canvas, and .canvas-wrap's own overflow:auto scrolls the whole page:
+     the stage scrolls, the white page itself never does. */
+  .sheet.start{min-height:min-content}
   /* .sheet is the page-shaped box — width and height both stay auto so
      the aspect-ratio/max-width/max-height solve together for the largest
      rectangle of that ratio inside the canvas, Portrait clamping on height,
@@ -1096,12 +1106,23 @@
   /* The start view: what #sheet shows at zero grades — a white landscape page,
      the app's own default shape, rather than an apology. drawChart
      still sets --page-ar here (from PAGES, not removes it), so .sheet's own
-     aspect-ratio rule sizes this the same way it sizes a drawn chart, and the
-     view fills that box rather than floating at its content size. */
+     aspect-ratio rule sizes this the same way it sizes a drawn chart. But
+     unlike the svg child, .start-cards' own max-width:640 (plus this
+     element's 26px side padding) would otherwise contribute real intrinsic
+     width to that solve, coming out content-sized rather than page-sized —
+     two geometries for one document. width:0;min-width:100% neutralises
+     that: a percentage min-width counts as 0 during intrinsic sizing but
+     still wins at used-value time, so the box is measured as if it had no
+     content of its own and then still fills the sheet exactly. Keep the two
+     declarations together on one line — without min-width:100% to win the
+     used-value fight, width:0 alone would collapse this to nothing. height
+     is min-height, not height, so .sheet.start's min-height:min-content
+     above can still grow the sheet past this box when the content is tall.
+     What used to scroll inside this element now belongs to .canvas-wrap —
+     the stage scrolls, not the page — so there is no overflow rule here. */
   .sheet-empty{
     display:flex;flex-direction:column;align-items:center;justify-content:center;
-    height:100%;box-sizing:border-box;padding:44px 26px;text-align:center;
-    overflow-y:auto;overflow-x:hidden;
+    min-height:100%;width:0;min-width:100%;box-sizing:border-box;padding:44px 26px;text-align:center;
   }
   .start-heading{margin:0 0 8px;font-size:19px;font-weight:600;color:var(--ink)}
   .start-lead{margin:0 0 26px;font-size:13px;line-height:1.5;color:var(--mute);max-width:320px}
@@ -5960,6 +5981,13 @@ function drawChart(){
        means "this chart has no background". There is no chart to be
        transparent, so the class goes. */
     $("#sheet").classList.remove("clear");
+    /* Marks the state .sheet.start's CSS rule keys off — see the stylesheet
+       comment beside that rule for why it lets the box grow past the fitted
+       chart-state solve when the start content is tall. The draw branch
+       below removes it: without that half of the pair, a chart drawn after
+       the start view stays stuck at min-height:min-content, a lie waiting
+       for a tall chart to overflow silently. */
+    $("#sheet").classList.add("start");
     /* The empty state is a start view, not a shrug — a white landscape
        page, the app's own default shape, always, regardless of the layout or
        page size last chosen: there is nothing drawn yet for those to
@@ -5975,6 +6003,7 @@ function drawChart(){
     return;
   }
   $("#sheet").classList.toggle("clear", L.bg === "transparent");
+  $("#sheet").classList.remove("start");
   /* CSS cannot know which of three page shapes is loaded — that answer lives
      in L.page, not in the stylesheet — so the renderer tells it, the same way
      it already tells #sheet whether the background is transparent. */
