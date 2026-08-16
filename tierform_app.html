@@ -694,6 +694,7 @@
   label.field > span{
     display:block;font-size:11px;color:var(--mute);margin-bottom:4px;letter-spacing:.02em;
   }
+  .field-note{margin:4px 0 0;font-size:12px;line-height:1.4;color:var(--mute)}
   input[type=text],select,input[type=color]{
     width:100%;font:inherit;font-size:13px;color:var(--ink);
     border:1px solid var(--line);border-radius:6px;background:#fff;
@@ -2081,10 +2082,14 @@
          grades at once belongs under Structure, not typed one at a time here. -->
     <p class="add-template-hint" id="addTemplateHint" hidden>Setting up more than the first grade?
       <button type="button" id="addGoTemplates">Apply a template instead…</button></p>
+    <!-- The note below Role is byte-identical with #editModal's copy of the
+         same sentence; test/dom.js §4n holds both against the same literal,
+         so the two cannot drift wording apart without going red. -->
     <div class="add-row role-row">
       <label class="field">
         <span>Role shown on the chart</span>
         <input type="text" id="addRole" maxlength="200" autocomplete="off">
+        <p class="field-note">Optional — left empty, the grade’s name is shown instead.</p>
       </label>
     </div>
     <div class="btnrow modal-foot">
@@ -2136,6 +2141,7 @@
       <label class="field">
         <span>Role shown on the chart</span>
         <input type="text" id="editRole" maxlength="200" autocomplete="off">
+        <p class="field-note">Optional — left empty, the grade’s name is shown instead.</p>
       </label>
     </div>
     <!-- Removing a person is not an edit of one — everything above changes

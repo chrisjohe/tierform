@@ -7187,26 +7187,50 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
    role-row">, so it takes the Grade column's width rather than the full
    row; that wrapper is folded into the SAME regex the loop below already
    shares across both dialogs, rather than a second, separate check bolted
-   on beside it. */
+   on beside it. The row also carries a one-line explanatory note — the
+   placeholder already previews what an empty Role prints, but nothing in
+   the dialog SAID so — sitting INSIDE the label, after the input, so the
+   two-column .add-row grid doesn't strand it in the empty second column
+   beside the field. The shared regex captures that note's text too, so a
+   dialog missing it (or narrowing the wrapper back to just the input) fails
+   the same "exactly one match shaped like the spec" check the id already
+   relies on, rather than needing a check of its own. */
 {
   function roleFieldMatches(dlgName){
     const at = MARKUP.indexOf('id="' + dlgName + '"');
     const nextAt = MARKUP.indexOf('class="modal-backdrop"', at);
     const dlg = at > 0 ? MARKUP.slice(at, nextAt > at ? nextAt : MARKUP.length) : "";
-    const re = /<div class="add-row role-row">\s*<label class="field">\s*<span>Role shown on the chart<\/span>\s*<input type="text" id="(\w+)" maxlength="200"[^>]*autocomplete="off">\s*<\/label>\s*<\/div>/g;
+    const re = /<div class="add-row role-row">\s*<label class="field">\s*<span>Role shown on the chart<\/span>\s*<input type="text" id="(\w+)" maxlength="200"[^>]*autocomplete="off">\s*<p class="field-note">([^<]+)<\/p>\s*<\/label>\s*<\/div>/g;
     return {dlg, matches: matchAll(re, dlg)};
   }
+  const ROLE_NOTE = "Optional — left empty, the grade’s name is shown instead.";
+  const roleNotes = {};
   for(const [dlgName, id] of [["addModal", "addRole"], ["editModal", "editRole"]]){
     const {dlg, matches} = roleFieldMatches(dlgName);
     check(dlg.length > 0, "#" + dlgName + " is in the markup");
     check(matches.length === 1,
       "#" + dlgName + " has exactly one Role field shaped like the shared "
       + "spec (its own .add-row.role-row wrapper, label.field, the same span "
-      + "text, a maxlength=200 text input, autocomplete off) — got " + matches.length);
+      + "text, a maxlength=200 text input, autocomplete off, and a trailing "
+      + "field-note inside the label) — got " + matches.length);
     check(matches.length === 1 && matches[0][1] === id,
       "…and that field's input carries id=\"" + id + "\", not a copy under a "
       + "different name");
+    roleNotes[dlgName] = matches.length === 1 ? matches[0][2] : null;
   }
+
+  /* The note's sentence is pinned against a literal written here — not
+     against the other dialog's copy alone — because two writers agreeing
+     with each other proves nothing if both drifted from the approved
+     wording the same way. */
+  check(roleNotes.addModal === ROLE_NOTE,
+    "the Role note's sentence in #addModal matches the approved copy "
+    + "(\"Optional — left empty, the grade’s name is shown instead.\") exactly");
+  check(roleNotes.editModal === ROLE_NOTE,
+    "the Role note's sentence in #editModal matches the approved copy "
+    + "(\"Optional — left empty, the grade’s name is shown instead.\") exactly");
+  check(roleNotes.addModal !== null && roleNotes.addModal === roleNotes.editModal,
+    "the Role note's sentence is byte-identical between #addModal and #editModal");
 
   /* The placeholder follows the grade, the same way syncEditModal's does —
      three sites have to keep it current: opening the dialog, switching the
@@ -7265,6 +7289,15 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
     "…and its margin gives it breathing room on both sides — 12px above, "
     + "14px below, toward the Role row under it — got "
     + JSON.stringify(hintRule && hintRule[1]));
+
+  const fieldNoteRule = /\.field-note\{([^}]*)\}/.exec(MARKUP);
+  check(!!fieldNoteRule, ".field-note has its own declaration block");
+  check(fieldNoteRule && /color:\s*var\(--mute\)/.test(fieldNoteRule[1]),
+    "…and it's muted like every other field caption, not full ink — got "
+    + JSON.stringify(fieldNoteRule && fieldNoteRule[1]));
+  check(fieldNoteRule && /font-size:\s*12px/.test(fieldNoteRule[1]),
+    "…and it's set a touch smaller than the 13px field text it sits under "
+    + "— got " + JSON.stringify(fieldNoteRule && fieldNoteRule[1]));
 }
 
 /* --------------------- 4o. one drag surface, made twice
