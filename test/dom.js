@@ -2521,9 +2521,8 @@ check(!/state\s*=\s*migrate\(/.test(SCRIPT),
 
   /* .sheet-empty used to float at its own content width and scroll inside
      itself; both moved out — see the stylesheet comment above .sheet-empty
-     for the full mechanism (intrinsic-width neutralisation via
-     width:0;min-width:100%, and min-height so .sheet.start can still grow
-     the box). */
+     for the full mechanism (out-asking .sheet's own cap the same way the
+     chart svg does, and min-height so .sheet.start can still grow the box). */
   const sheetEmptyCSS = /\.sheet-empty\{[^}]*\}/.exec(MARKUP);
   check(!!sheetEmptyCSS, "the .sheet-empty rule is found in the stylesheet");
   check(sheetEmptyCSS && !/overflow/.test(sheetEmptyCSS[0]),
@@ -2535,15 +2534,30 @@ check(!/state\s*=\s*migrate\(/.test(SCRIPT),
     + "still fills at short content but yields to .sheet.start's "
     + "min-height:min-content when the content is tall — got: "
     + (sheetEmptyCSS && sheetEmptyCSS[0]));
-  check(sheetEmptyCSS && /width:0/.test(sheetEmptyCSS[0]),
-    ".sheet-empty declares width:0 — a percentage min-width counts as 0 "
-    + "during intrinsic sizing only when width itself supplies no definite "
-    + "one, which is what stops the start view dictating the page's size — "
+  check(sheetEmptyCSS && /max-width:100%/.test(sheetEmptyCSS[0]),
+    ".sheet-empty declares max-width:100% — that is what keeps the used "
+    + "width inside the solved sheet once its own width out-asks the cap — "
     + "got: " + (sheetEmptyCSS && sheetEmptyCSS[0]));
-  check(sheetEmptyCSS && /min-width:100%/.test(sheetEmptyCSS[0]),
-    ".sheet-empty declares min-width:100% — it wins at used-value time so "
-    + "the box still fills the sheet exactly — got: "
+  /* Relation, not a literal: .sheet-empty's own width and .sheet's max-width
+     cap are two independent numbers written in two different rules, and the
+     start view only sizes the sheet the same way the chart svg does — by
+     asking for more than any cap allows — as long as the child's width stays
+     at or above the sheet's cap. Extracted from the two rules themselves so
+     this is answered by a second source, not restated as a literal pin. */
+  const sheetEmptyWidthM = sheetEmptyCSS && /width:(\d+)px/.exec(sheetEmptyCSS[0]);
+  const sheetCapCSS = /\.sheet\{[^}]*\}/.exec(MARKUP);
+  const sheetCapM = sheetCapCSS && /max-width:min\((\d+)px/.exec(sheetCapCSS[0]);
+  check(!!sheetEmptyWidthM, ".sheet-empty's width is a px literal — got: "
     + (sheetEmptyCSS && sheetEmptyCSS[0]));
+  check(!!sheetCapM, ".sheet's max-width cap is a min(...px,100%) literal — got: "
+    + (sheetCapCSS && sheetCapCSS[0]));
+  check(sheetEmptyWidthM && sheetCapM
+    && Number(sheetEmptyWidthM[1]) >= Number(sheetCapM[1]),
+    "the start view's width (" + (sheetEmptyWidthM && sheetEmptyWidthM[1])
+    + "px) must stay at or above .sheet's max-width cap ("
+    + (sheetCapM && sheetCapM[1]) + "px) — fall below it and the solve "
+    + "silently under-sizes the page, the same collapse a percentage "
+    + "min-width once caused");
 
   /* drawChart is the only thing that can tell CSS which page shape is
      loaded. The empty branch is a full landscape page in its own right, the

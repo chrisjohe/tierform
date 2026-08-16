@@ -1110,19 +1110,24 @@
      unlike the svg child, .start-cards' own max-width:640 (plus this
      element's 26px side padding) would otherwise contribute real intrinsic
      width to that solve, coming out content-sized rather than page-sized —
-     two geometries for one document. width:0;min-width:100% neutralises
-     that: a percentage min-width counts as 0 during intrinsic sizing but
-     still wins at used-value time, so the box is measured as if it had no
-     content of its own and then still fills the sheet exactly. Keep the two
-     declarations together on one line — without min-width:100% to win the
-     used-value fight, width:0 alone would collapse this to nothing. height
-     is min-height, not height, so .sheet.start's min-height:min-content
-     above can still grow the sheet past this box when the content is tall.
-     What used to scroll inside this element now belongs to .canvas-wrap —
-     the stage scrolls, not the page — so there is no overflow rule here. */
+     two geometries for one document. The chart svg avoids that because
+     toSVG gives it real width/height attributes well above any cap — up to
+     roughly 1587px for a landscape page — so .sheet's own max-width/
+     max-height/aspect-ratio decide the final size regardless of what the
+     child asked for. width:1600px puts this element through the same
+     solve: deliberately above both .sheet's 1180px max-width and the
+     widest chart svg, so it always out-asks the cap and .sheet's clamp
+     decides the size here too. max-width:100% is the other half of that —
+     it keeps the USED width inside the solved sheet, so keep the two
+     declarations together on one line: width:1600px without it would
+     overflow at every window narrower than 1600px. height is min-height,
+     not height, so .sheet.start's min-height:min-content above can still
+     grow the sheet past this box when the content is tall. What used to
+     scroll inside this element now belongs to .canvas-wrap — the stage
+     scrolls, not the page — so there is no overflow rule here. */
   .sheet-empty{
     display:flex;flex-direction:column;align-items:center;justify-content:center;
-    min-height:100%;width:0;min-width:100%;box-sizing:border-box;padding:44px 26px;text-align:center;
+    min-height:100%;width:1600px;max-width:100%;box-sizing:border-box;padding:44px 26px;text-align:center;
   }
   .start-heading{margin:0 0 8px;font-size:19px;font-weight:600;color:var(--ink)}
   .start-lead{margin:0 0 26px;font-size:13px;line-height:1.5;color:var(--mute);max-width:320px}
