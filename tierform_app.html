@@ -700,14 +700,25 @@
     padding:7px 9px;outline:none;
   }
   input[type=color]{padding:2px;height:34px;cursor:pointer}
-  /* macOS renders a native select taller than a text input even with the
-     same padding, because the platform control has its own vertical rhythm
-     the shared field rule above cannot reach. Pin the modal Grade select to
-     the text input's own rendered height instead of guessing: 13px font +
-     7px padding top and bottom + 1px border top and bottom = 29px. Scoped to
-     modal fields only — the ribbon's compact selects (.rb-group) and the
-     grade popover's inputs (.gmenu) are sized by their own rules. */
-  .modal label.field select{height:29px}
+  /* A native select renders taller than a text input even with the same
+     padding, because the platform control has its own vertical rhythm the
+     shared field rule above cannot reach. Pin the modal Grade select to the
+     text input's own rendered height instead of guessing: 13px font + 7px
+     padding top and bottom + 1px border top and bottom = 29px. But the
+     select's OWN vertical padding has to go to zero, not stay at the shared
+     rule's 7px — a fixed 29px box with 7px padding top and bottom still
+     applied squeezes the line box the UA has left to lay text in down to
+     13px, and a native menulist needs more than the bare font-size to draw
+     an uncropped line: macOS quietly absorbs the squeeze, other platforms
+     clip the lower half of every glyph. Zeroing padding-top/padding-bottom
+     hands the UA the full 27px content box, which a menulist vertically
+     centres the text in on its own — the height keeps the alignment with
+     text inputs, the zeroed padding is what keeps the text on screen. The
+     shared rule's 9px left/right padding is untouched: only the vertical
+     pair is scoped away here. Scoped to modal fields only — the ribbon's
+     compact selects (.rb-group) and the grade popover's inputs (.gmenu) are
+     sized by their own rules. */
+  .modal label.field select{height:29px;padding-top:0;padding-bottom:0}
   input[type=range]{width:100%;accent-color:var(--brand);margin:6px 0 0}
   label.field > span b{float:right;font-weight:600;color:var(--ink-2);font-variant-numeric:tabular-nums}
   input[type=text]:focus,select:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(var(--brand-rgb),.12)}

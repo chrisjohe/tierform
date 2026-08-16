@@ -8208,9 +8208,15 @@ const VOID = ["input","br","img","hr","meta","link"];
      prose satisfy a pattern meant to match real declarations. */
   const css = /<style>([\s\S]*?)<\/style>/.exec(MARKUP);
   const CSS = (css ? css[1] : "").replace(/\/\*[\s\S]*?\*\//g, " ");
-  check(/\.modal\s+label\.field\s+select\s*\{\s*height:\s*29px\s*;?\s*\}/.test(CSS),
-    "the modal Grade select is pinned to 29px — 13px font + 7px padding ×2 + "
-    + "1px border ×2, the text input's own rendered height");
+  const modalSelectRule = /\.modal\s+label\.field\s+select\s*\{([^}]*)\}/.exec(CSS);
+  check(!!modalSelectRule
+      && /height:\s*29px\s*;?/.test(modalSelectRule[1])
+      && /padding-top:\s*0\s*;?/.test(modalSelectRule[1])
+      && /padding-bottom:\s*0\s*;?/.test(modalSelectRule[1]),
+    "the modal Grade select's height and its zeroed vertical padding are one "
+    + "decision: 29px with the shared rule's 7px top/bottom padding still "
+    + "applied squeezes the line box to 13px, which a native menulist needs "
+    + "more room than to draw uncropped — height alone is not the fix");
   const sharedFieldRule = /input\[type=text\],select,input\[type=color\]\{[^}]*\}/.exec(CSS);
   check(!!sharedFieldRule && !/height/.test(sharedFieldRule[0]),
     "the shared field rule gains no height property — the fix stays scoped to "
