@@ -3340,6 +3340,33 @@ async function runSuite(){
       + "must be left alone rather than turning \"ßler\" into \"SSler\""],
     ["grace_hopper.jpg", "Grace Hopper",
       "plain ASCII filenames are title-cased exactly as before"],
+    // macOS hands dropped filenames over NFD-decomposed: these three build
+    // the ü/ö as "letter" + U+0308 combining diaeresis by explicit escape,
+    // so no editor can silently recompose them back to NFC. The `want`
+    // literals stay the ordinary precomposed NFC (U+00FC/U+00D6) typed
+    // above, because nameFromFile must normalize its input before
+    // title-casing it.
+    ["m" + "u\u0308" + "ller.jpg", "M\u00fcller",
+      "a macOS NFD filename (u + U+0308 combining diaeresis, not the "
+      + "precomposed \u00fc) must normalize to NFC before title-casing, or "
+      + "the combining mark reads as a word start and uppercases the "
+      + "letter after it instead"],
+    ["anna_m" + "u\u0308" + "ller.jpg", "Anna M\u00fcller",
+      "the same NFD normalization (u + U+0308) applies after the "
+      + "separator collapse, across a two-word filename"],
+    ["o\u0308" + "lberg.jpg", "\u00d6lberg",
+      "a decomposed umlaut (o + U+0308) at the very start of the string "
+      + "still earns exactly one capital, on the base letter, not on the "
+      + "letter after the combining mark"],
+    // n + U+0304 combining macron has NO precomposed Unicode form, so NFC
+    // normalization leaves it exactly as typed \u2014 unlike the three cases
+    // above, this one can only be answered by the boundary-class fix
+    // itself (a combining mark must never open a title-case word).
+    ["n" + "\u0304" + "andor.jpg", "N" + "\u0304" + "andor",
+      "n + U+0304 combining macron has no precomposed NFC form, so "
+      + "normalization cannot fold this case \u2014 the boundary class must "
+      + "itself treat a combining mark as riding on its base letter, or "
+      + "the letter after the macron gets pulled uppercase too"],
   ]){
     const M = makeModule();
     M.state = M.defaults();

@@ -4148,9 +4148,11 @@ function initials(full){
   return ((p[0][0]||"") + (p.length>1 ? p[p.length-1][0] : "")).toUpperCase();
 }
 function nameFromFile(fn){
-  let s = fn.replace(/\.[^.]+$/,"").replace(/[_\-.]+/g," ").replace(/\s+/g," ").trim();
+  // macOS hands filenames over NFD-decomposed (ü = u + combining diaeresis);
+  // normalize to NFC first so a combining mark never opens a title-case word.
+  let s = fn.normalize("NFC").replace(/\.[^.]+$/,"").replace(/[_\-.]+/g," ").replace(/\s+/g," ").trim();
   if(s.includes(",")){ const [a,b]=s.split(",",2); s = (b+" "+a).trim(); }
-  return s.replace(/(^|\P{L})(\p{L})/gu, (m,pre,c)=>{ const u=c.toUpperCase(); return pre+(u.length===1?u:c); });
+  return s.replace(/(^|[^\p{L}\p{M}])(\p{L})/gu, (m,pre,c)=>{ const u=c.toUpperCase(); return pre+(u.length===1?u:c); });
 }
 function tierOf(p){ return state.tiers.find(t=>t.id===p.tierId) || state.tiers[0]; }
 function withAlpha(hex, a){
