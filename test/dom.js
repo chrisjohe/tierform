@@ -7187,50 +7187,34 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
    role-row">, so it takes the Grade column's width rather than the full
    row; that wrapper is folded into the SAME regex the loop below already
    shares across both dialogs, rather than a second, separate check bolted
-   on beside it. The row also carries a one-line explanatory note — the
-   placeholder already previews what an empty Role prints, but nothing in
-   the dialog SAID so — sitting INSIDE the label, after the input, so the
-   two-column .add-row grid doesn't strand it in the empty second column
-   beside the field. The shared regex captures that note's text too, so a
-   dialog missing it (or narrowing the wrapper back to just the input) fails
-   the same "exactly one match shaped like the spec" check the id already
-   relies on, rather than needing a check of its own. */
+   on beside it. There used to be a one-line explanatory note under the
+   field too, but the owner's browser check flagged it twice over: the note
+   rendered at 12px, LARGER than the 11px label above it, so the hierarchy
+   read upside down, and on Add it made the dialog feel cluttered next to the
+   zero-grade hint. The note is gone; its job now splits between the label
+   itself, which states "(optional)" outright, and the placeholder, which
+   already previews live what an empty Role prints (see syncAddRolePlaceholder
+   below) — nothing left unsaid, nothing oversized. */
 {
   function roleFieldMatches(dlgName){
     const at = MARKUP.indexOf('id="' + dlgName + '"');
     const nextAt = MARKUP.indexOf('class="modal-backdrop"', at);
     const dlg = at > 0 ? MARKUP.slice(at, nextAt > at ? nextAt : MARKUP.length) : "";
-    const re = /<div class="add-row role-row">\s*<label class="field">\s*<span>Role shown on the chart<\/span>\s*<input type="text" id="(\w+)" maxlength="200"[^>]*autocomplete="off">\s*<p class="field-note">([^<]+)<\/p>\s*<\/label>\s*<\/div>/g;
+    const re = /<div class="add-row role-row">\s*<label class="field">\s*<span>Role shown on the chart \(optional\)<\/span>\s*<input type="text" id="(\w+)" maxlength="200"[^>]*autocomplete="off">\s*<\/label>\s*<\/div>/g;
     return {dlg, matches: matchAll(re, dlg)};
   }
-  const ROLE_NOTE = "Optional — left empty, the grade’s name is shown instead.";
-  const roleNotes = {};
   for(const [dlgName, id] of [["addModal", "addRole"], ["editModal", "editRole"]]){
     const {dlg, matches} = roleFieldMatches(dlgName);
     check(dlg.length > 0, "#" + dlgName + " is in the markup");
     check(matches.length === 1,
       "#" + dlgName + " has exactly one Role field shaped like the shared "
-      + "spec (its own .add-row.role-row wrapper, label.field, the same span "
-      + "text, a maxlength=200 text input, autocomplete off, and a trailing "
-      + "field-note inside the label) — got " + matches.length);
+      + "spec (its own .add-row.role-row wrapper, label.field, the "
+      + "\"(optional)\" span text, and a maxlength=200 text input with "
+      + "autocomplete off — no trailing note) — got " + matches.length);
     check(matches.length === 1 && matches[0][1] === id,
       "…and that field's input carries id=\"" + id + "\", not a copy under a "
       + "different name");
-    roleNotes[dlgName] = matches.length === 1 ? matches[0][2] : null;
   }
-
-  /* The note's sentence is pinned against a literal written here — not
-     against the other dialog's copy alone — because two writers agreeing
-     with each other proves nothing if both drifted from the approved
-     wording the same way. */
-  check(roleNotes.addModal === ROLE_NOTE,
-    "the Role note's sentence in #addModal matches the approved copy "
-    + "(\"Optional — left empty, the grade’s name is shown instead.\") exactly");
-  check(roleNotes.editModal === ROLE_NOTE,
-    "the Role note's sentence in #editModal matches the approved copy "
-    + "(\"Optional — left empty, the grade’s name is shown instead.\") exactly");
-  check(roleNotes.addModal !== null && roleNotes.addModal === roleNotes.editModal,
-    "the Role note's sentence is byte-identical between #addModal and #editModal");
 
   /* The placeholder follows the grade, the same way syncEditModal's does —
      three sites have to keep it current: opening the dialog, switching the
@@ -7299,14 +7283,43 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
     + "14px below, toward the Role row under it — got "
     + JSON.stringify(hintRule && hintRule[1]));
 
-  const fieldNoteRule = /\.field-note\{([^}]*)\}/.exec(MARKUP);
-  check(!!fieldNoteRule, ".field-note has its own declaration block");
-  check(fieldNoteRule && /color:\s*var\(--mute\)/.test(fieldNoteRule[1]),
-    "…and it's muted like every other field caption, not full ink — got "
-    + JSON.stringify(fieldNoteRule && fieldNoteRule[1]));
-  check(fieldNoteRule && /font-size:\s*12px/.test(fieldNoteRule[1]),
-    "…and it's set a touch smaller than the 13px field text it sits under "
-    + "— got " + JSON.stringify(fieldNoteRule && fieldNoteRule[1]));
+  /* .field-note is gone — the Role note it dressed was removed along with
+     it, so a wearer-less rule (or a wearer that crept back half-reverted)
+     both fail this one ban rather than needing a check apiece. Checked
+     against the whole file, not just MARKUP: a stray class reference inside
+     the script would slip past a markup-only scan. */
+  check(HTML.indexOf("field-note") === -1,
+    "\"field-note\" appears zero times anywhere in the file (markup, CSS or "
+    + "script) — got " + (HTML.match(/field-note/g) || []).length
+    + " occurrence(s)");
+
+  /* The hierarchy the browser check flagged: a hint must never render LARGER
+     than the label it sits near. Answered from a second writer each side —
+     label.field > span's own font-size compared against
+     .add-template-hint's own, not a literal repeated in both places, so
+     either rule drifting away from the other goes red regardless of which
+     one moved. The lookbehind excludes .rb-group's own "label.field > span"
+     (10.5px, a ribbon rule with no bearing on modal hints). */
+  const labelSpanRule = /(?<!\.rb-group )label\.field > span\{([^}]*)\}/.exec(MARKUP);
+  check(!!labelSpanRule,
+    "label.field > span (the modal field-label rule, not .rb-group's ribbon "
+    + "variant) has its own declaration block");
+  const labelSpanSize = labelSpanRule
+    && /font-size:\s*(\d+(?:\.\d+)?)px/.exec(labelSpanRule[1]);
+  check(!!labelSpanSize,
+    "…and it states a font-size — got "
+    + JSON.stringify(labelSpanRule && labelSpanRule[1]));
+
+  const hintSize = hintRule && /font-size:\s*(\d+(?:\.\d+)?)px/.exec(hintRule[1]);
+  check(!!hintSize,
+    ".add-template-hint states a font-size — got "
+    + JSON.stringify(hintRule && hintRule[1]));
+
+  check(!!labelSpanSize && !!hintSize && labelSpanSize[1] === hintSize[1],
+    "the zero-grade hint's font-size (" + (hintSize && hintSize[1]) + "px) "
+    + "equals label.field > span's (" + (labelSpanSize && labelSpanSize[1])
+    + "px) — a hint must never outweigh the label it sits near, which is "
+    + "exactly how the 12px-over-11px Role note got sent back");
 }
 
 /* --------------------- 4o. one drag surface, made twice
