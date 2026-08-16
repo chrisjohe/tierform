@@ -7269,11 +7269,20 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
    properties, not the whole declaration block, so an unrelated property
    added later beside them does not make this section brittle. */
 {
-  check(/Setting up more than the first grade\?/.test(MARKUP),
-    "the zero-grade hint's sentence names the FIRST grade, not just \"more "
-    + "than one\" — got no match");
-  check(!/Setting up more than one grade\?/.test(MARKUP),
-    "…and no second copy of that wording (\"Setting up more than one grade?\") is left behind");
+  check(MARKUP.includes("This document has no grades yet — the one you type "
+    + "above is created together with this person. Setting up several grades?"),
+    "the zero-grade hint states that this document HAS no grades yet and "
+    + "that the typed field above creates the first one, before offering "
+    + "the template route — got no match");
+  check(MARKUP.includes('id="addGoTemplates">Apply a template…<'),
+    "…and the escape hatch reads as an offer (\"Apply a template…\"), not a "
+    + "correction of typing a grade here — got no match");
+  check(!/Setting up more than the first grade\?/.test(MARKUP),
+    "…and no copy of the old lead-in (\"Setting up more than the first "
+    + "grade?\") is left behind");
+  check(!MARKUP.includes("Apply a template instead…"),
+    "…and no copy of the old correction-toned face (\"Apply a template "
+    + "instead…\") is left behind");
 
   const roleRowRule = /\.role-row\{([^}]*)\}/.exec(MARKUP);
   check(!!roleRowRule, ".role-row has its own declaration block");

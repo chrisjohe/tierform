@@ -2078,10 +2078,12 @@
         <input type="text" id="addGroup" maxlength="200" placeholder="Berlin" autocomplete="off" list="groupOptions">
       </label>
     </div>
-    <!-- The escape hatch beside the First-grade field: setting up several
-         grades at once belongs under Structure, not typed one at a time here. -->
-    <p class="add-template-hint" id="addTemplateHint" hidden>Setting up more than the first grade?
-      <button type="button" id="addGoTemplates">Apply a template instead…</button></p>
+    <!-- The escape hatch beside the First-grade field: the sentence leads with
+         what IS the case here — no grades yet, this step creates the first —
+         before offering Structure's template route as an offer, not a
+         correction of typing a grade here. -->
+    <p class="add-template-hint" id="addTemplateHint" hidden>This document has no grades yet — the one you type above is created together with this person. Setting up several grades?
+      <button type="button" id="addGoTemplates">Apply a template…</button></p>
     <!-- The note below Role is byte-identical with #editModal's copy of the
          same sentence; test/dom.js §4n holds both against the same literal,
          so the two cannot drift wording apart without going red. -->
