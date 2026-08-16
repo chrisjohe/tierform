@@ -74,6 +74,17 @@
                               from body ink in a dark scheme, or they paint
                               white-on-white the day --ink lightens */
     --inverse-ink:#ffffff;
+    --brand-ink:#003153;   /* same value as --brand on purpose: the brand where
+                              it must READ on a chrome surface — text, borders,
+                              focus rings, slider accent — so a dark scheme can
+                              lift it while the brand FILLS stay --brand */
+    --badge-bg:#6b7480;    /* same value as --mute today, on purpose: the 2D
+                              badge fill must be able to part from muted text
+                              in a dark scheme */
+    --badge-ink:#ffffff;
+    --hot:rgba(var(--brand-rgb),.05);         /* hover wash: drop zones, start cards */
+    --hot-strong:rgba(var(--brand-rgb),.06);  /* the canvas-wide drop wash */
+    --focus-glow:rgba(var(--brand-rgb),.12);  /* focus ring glow on text fields */
     --font: 'Open Sans', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif;
   }
   *{box-sizing:border-box}
@@ -184,7 +195,7 @@
     padding:7px 16px;font-size:13px;font-weight:600;border-radius:7px 7px 0 0;
   }
   .rb-tab:hover{background:rgba(255,255,255,.14);color:#fff}
-  .rb-tab.on{background:var(--shell);color:var(--brand)}
+  .rb-tab.on{background:var(--shell);color:var(--brand-ink)}
   .rb-tab:focus-visible{outline:2px solid #fff;outline-offset:-3px}
   .rb-doc{
     margin-left:auto;display:flex;align-items:center;gap:5px;padding:0 6px 7px 14px;
@@ -420,7 +431,7 @@
   }
   button.style-command:hover,.style-command:hover{background:var(--hover)}
   button.style-command[aria-expanded="true"]{background:var(--line-2)}
-  button.style-command:focus-visible,.style-command:focus-within{outline:2px solid var(--brand);outline-offset:2px}
+  button.style-command:focus-visible,.style-command:focus-within{outline:2px solid var(--brand-ink);outline-offset:2px}
   /* Same dimensions as the standard primary ribbon command. The only extra
      right padding reserves the Save-sized caret; there is no second value row. */
   .style-tall{flex-direction:column;padding:6px 20px 6px 10px;min-width:74px;line-height:1.2}
@@ -471,13 +482,13 @@
      branded or alarming. Inline-block with line-height:1 and small padding
      keeps it shorter than button.big's own 1.2 label line, so it sits on the
      label's baseline without growing the two-line face. */
-  .badge-2d{display:inline-block;background:var(--mute);color:#fff;font-size:10px;
+  .badge-2d{display:inline-block;background:var(--badge-bg);color:var(--badge-ink);font-size:10px;
     font-weight:700;line-height:1;padding:2px 5px;border-radius:5px;vertical-align:baseline}
   .style-menu{min-width:190px}
   .style-menu button[role="menuitemradio"]{align-items:center;gap:8px;padding-right:30px;position:relative}
   .style-menu button[role="menuitemradio"] .ic{width:18px;height:18px}
   .style-menu button[role="menuitemradio"][aria-checked="true"]{background:var(--line-2);font-weight:650}
-  .style-menu button[role="menuitemradio"][aria-checked="true"]::after{content:"\2713";position:absolute;right:10px;color:var(--brand)}
+  .style-menu button[role="menuitemradio"][aria-checked="true"]::after{content:"\2713";position:absolute;right:10px;color:var(--brand-ink)}
   .style-menu-group + .style-menu-group{border-top:1px solid var(--line-2);margin-top:5px;padding-top:5px}
   /* The badge reuses .style-warn's colour, size and radius — one source for
      what a warning circle looks like — and overrides only its position for the
@@ -552,7 +563,7 @@
   }
   .accent-more:hover{background:var(--line-2)}
   .accent-more > .ic{width:18px;height:18px}
-  .accent-more:focus-within{outline:2px solid var(--brand);outline-offset:-2px}
+  .accent-more:focus-within{outline:2px solid var(--brand-ink);outline-offset:-2px}
   .accent-more input[type=color]{
     position:absolute;inset:0;width:100%;height:100%;
     padding:0;border:none;opacity:0;cursor:pointer;
@@ -595,7 +606,7 @@
   .info-doc p{margin:0 0 7px}
   .info-doc ul{margin:0;padding-left:16px}
   .info-doc li{margin-bottom:2px}
-  .info-doc a{color:var(--brand);font-weight:600}
+  .info-doc a{color:var(--brand-ink);font-weight:600}
   .info-doc kbd{
     font:inherit;font-size:11px;background:var(--line-2);border:1px solid var(--line);
     border-radius:3px;padding:0 3px;color:var(--ink-2);
@@ -617,8 +628,8 @@
      `fill:currentColor` is what carries `color` to the path — it does not
      inherit, and this mark carries no `.ic` to supply it.
      78x65 is the artwork's own 2343x1952 ratio, so nothing letterboxes. */
-  .about-mark{width:78px;height:65px;fill:currentColor;margin:2px 0 7px;color:var(--brand)}
-  .about-wordmark{color:var(--brand);font-size:20px;font-weight:600;letter-spacing:.30em;margin-left:.30em}
+  .about-mark{width:78px;height:65px;fill:currentColor;margin:2px 0 7px;color:var(--brand-ink)}
+  .about-wordmark{color:var(--brand-ink);font-size:20px;font-weight:600;letter-spacing:.30em;margin-left:.30em}
   .about-version{font-size:14px;margin:14px 0 5px!important;color:var(--ink)}
   .about-copy{font-size:13px;line-height:1.5;margin-bottom:12px!important;color:var(--ink)}
   /* .info-link is the Bug report document's advisory link, and it rides along
@@ -645,7 +656,7 @@
   .info-doc p.info-link-row{text-align:center}
   .about-github:hover, .info-link:hover{background:var(--brand-dark)}
   .about-github:focus-visible,
-  .info-link:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+  .info-link:focus-visible{outline:2px solid var(--brand-ink);outline-offset:3px}
   .about-github svg, .info-link svg{width:20px;height:20px;flex:0 0 auto}
   /* the sprite's symbols carry no fill of their own; .ic supplies it everywhere
      else, and this link's icon is not a .ic because it is 20px, not 17px */
@@ -676,7 +687,7 @@
   .preview-note{display:inline-flex;align-items:center;gap:4px}
   .preview-note[hidden]{display:none}
   .preview-note .ic{width:13px;height:13px}
-  .opening{color:var(--brand);font-weight:600}
+  .opening{color:var(--brand-ink);font-weight:600}
   .opening[hidden]{display:none}
 
   /* ---------- sidebar ---------- */
@@ -731,9 +742,9 @@
      compact selects (.rb-group) and the grade popover's inputs (.gmenu) are
      sized by their own rules. */
   .modal label.field select{height:29px;padding-top:0;padding-bottom:0}
-  input[type=range]{width:100%;accent-color:var(--brand);margin:6px 0 0}
+  input[type=range]{width:100%;accent-color:var(--brand-ink);margin:6px 0 0}
   label.field > span b{float:right;font-weight:600;color:var(--ink-2);font-variant-numeric:tabular-nums}
-  input[type=text]:focus,select:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(var(--brand-rgb),.12)}
+  input[type=text]:focus,select:focus{border-color:var(--brand-ink);box-shadow:0 0 0 3px var(--focus-glow)}
 
   button, .g-chip-face{
     font:inherit;font-size:12.5px;font-weight:550;cursor:pointer;
@@ -742,7 +753,7 @@
   }
   button:hover, .g-chip-face:hover{background:var(--hover);border-color:var(--hover-line)}
   button:active{transform:translateY(.5px)}
-  button:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  button:focus-visible{outline:2px solid var(--brand-ink);outline-offset:2px}
   button:disabled{opacity:.38;cursor:default;pointer-events:none}
   /* A command that is switched off but still has something to say. Same weight
      as :disabled, and deliberately NOT its pointer-events:none — the whole
@@ -807,7 +818,7 @@
      measured after the row is hidden it comes out zero and reads as a line. */
   .p-drop-slot{
     pointer-events:none;margin-bottom:1px;box-sizing:border-box;
-    border:1.5px dashed var(--brand);border-radius:8px;background:transparent;
+    border:1.5px dashed var(--brand-ink);border-radius:8px;background:transparent;
   }
   /* The Group modal's own list, the same row shape as .p-row (draggable
      surface, hover border, a slot that collapses to display:none while
@@ -996,12 +1007,12 @@
      own box — see makeDragSurface's dropSlot(). */
   .g-drop-slot{
     flex:0 0 auto;align-self:stretch;pointer-events:none;
-    border:1.5px dashed var(--brand);border-radius:6px;background:transparent;
+    border:1.5px dashed var(--brand-ink);border-radius:6px;background:transparent;
   }
   /* A class on the wrapper rather than a selector on the caret's aria-expanded:
      the open state colours BOTH halves, and only the caret carries the state. */
   .g-chip.open > .g-chip-face,
-  .g-chip.open > .g-chip-toggle{border-color:var(--brand);background:var(--line-2)}
+  .g-chip.open > .g-chip-toggle{border-color:var(--brand-ink);background:var(--line-2)}
   .g-code{
     display:flex;align-items:center;height:26px;max-width:100%;
     background:var(--inverse-bg);color:var(--inverse-ink);border-radius:4px;padding:0 8px;
@@ -1049,9 +1060,9 @@
      Fill and People say aria-checked, the Attach and Share toggles say
      aria-pressed, and there is no reason for the two to look different. */
   .gopts .gopt[aria-checked="true"], .gopts .gopt[aria-pressed="true"]{
-    border-color:var(--brand);background:var(--line-2);color:var(--ink);font-weight:650;
+    border-color:var(--brand-ink);background:var(--line-2);color:var(--ink);font-weight:650;
   }
-  .gopts .gopt[aria-checked="true"] .ic, .gopts .gopt[aria-pressed="true"] .ic{color:var(--brand)}
+  .gopts .gopt[aria-checked="true"] .ic, .gopts .gopt[aria-pressed="true"] .ic{color:var(--brand-ink)}
   .gmenu .acts{display:flex;gap:4px}
   .gmenu .acts button{flex:1;justify-content:center;padding:4px 6px;font-size:11.5px;gap:3px}
   .gmenu .acts .ic{width:14px;height:14px}
@@ -1075,14 +1086,14 @@
     color:var(--mute);font-size:12.5px;line-height:1.5;cursor:pointer;background:var(--drop-bg);
     transition:border-color .12s,background .12s;
   }
-  .drop:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
-  .drop:hover,.drop.hot{border-color:var(--brand);background:rgba(var(--brand-rgb),.05);color:var(--ink-2)}
+  .drop:focus-visible{outline:2px solid var(--brand-ink);outline-offset:2px}
+  .drop:hover,.drop.hot{border-color:var(--brand-ink);background:var(--hot);color:var(--ink-2)}
   .drop b{color:var(--ink);font-weight:600}
   /* .ic is display:block for the buttons that stack an icon over a label; this
      one sits in a run of text, so it goes back to inline and is nudged onto the
      baseline. Sized to the text, not to the 17px the buttons use. */
   .drop .ic{display:inline-block;width:14px;height:14px;vertical-align:-2px;margin-right:4px}
-  .canvas-wrap.hot{box-shadow:inset 0 0 0 3px var(--brand);background:rgba(var(--brand-rgb),.06)}
+  .canvas-wrap.hot{box-shadow:inset 0 0 0 3px var(--brand-ink);background:var(--hot-strong)}
   /* A percentage max-height resolves against its containing block's height,
      and an auto height counts as none — so the constraint has to sit where
      the block IS definite: .sheet itself, a flex item of .canvas-wrap with a
@@ -1158,8 +1169,8 @@
     font:inherit;text-align:left;cursor:pointer;
     transition:border-color .12s,background .12s;
   }
-  .start-card:hover{border-color:var(--brand);background:rgba(var(--brand-rgb),.05)}
-  .start-card:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .start-card:hover{border-color:var(--brand-ink);background:var(--hot)}
+  .start-card:focus-visible{outline:2px solid var(--brand-ink);outline-offset:2px}
   /* One anatomy for all four tiles — icon/swatch, title, descriptor — so the
      Open… tile's #i-open sits in the same slot a template card's swatch
      does. The swatch reuses .accent-dot's own rule (one writer of the
@@ -1214,7 +1225,7 @@
     font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
     border:1px solid var(--line);border-radius:6px;padding:9px 10px;outline:none;
   }
-  .modal textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(var(--brand-rgb),.12)}
+  .modal textarea:focus{border-color:var(--brand-ink);box-shadow:0 0 0 3px var(--focus-glow)}
   /* One action alignment for every modal: confirmations, text prompts, Paste
      list and Info all use .btnrow.modal-foot. justify-content:center is
      untouched by the exception below; position:relative only gives that
@@ -1254,7 +1265,7 @@
   .add-template-hint{margin:12px 0 14px;font-size:11px;line-height:1.4;color:var(--mute)}
   .add-template-hint button{
     background:none;border:none;padding:0;margin:0;font:inherit;font-size:inherit;
-    color:var(--brand);text-decoration:underline;cursor:pointer;
+    color:var(--brand-ink);text-decoration:underline;cursor:pointer;
   }
   .add-template-hint button:hover{color:var(--brand-dark)}
   /* The one photo section at the top of the Add dialog, centred: no photo
@@ -1281,7 +1292,7 @@
     border:1px solid var(--line);border-radius:6px;background:var(--surface);
     padding:6px 9px;outline:none;
   }
-  .modal input[type=file]:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(var(--brand-rgb),.12)}
+  .modal input[type=file]:focus{border-color:var(--brand-ink);box-shadow:0 0 0 3px var(--focus-glow)}
   .paste-table-wrap{max-height:320px;overflow-y:auto;border:1px solid var(--line-2);border-radius:8px}
   .paste-table{width:100%;border-collapse:collapse;font-size:12.5px}
   .paste-table th{
@@ -1329,7 +1340,7 @@
   /* The framing circle is a button; the row's thumbnail is not — it carries
      no verb and takes no focus, so it gets neither the pointer nor the focus
      ring. */
-  .fp-circle:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .fp-circle:focus-visible{outline:2px solid var(--brand-ink);outline-offset:2px}
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 <style id="fontcss">

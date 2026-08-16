@@ -3385,6 +3385,36 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
     check(!/setProperty\(\s*"--brand"/.test(SCRIPT) && !/--brand[^\n]*state\.accent/.test(SCRIPT),
       "and no script writes --brand at all, from state.accent or anything else");
   }
+
+  /* Dark Mode step (b1) part 2: every site where the brand reads as ink,
+     border, focus ring or accent ON a chrome surface must go through
+     --brand-ink (and the six low-alpha brand tints through --hot/--hot-strong/
+     --focus-glow) rather than --brand directly, so a dark scheme can lift
+     those sites without touching the brand FILLS (titlebar, primary buttons),
+     which stay --brand forever. A raw site here would silently stay Prussian
+     blue — invisible on a dark chrome surface — the day the dark block ships. */
+  {
+    const css = /<style>([\s\S]*?)<\/style>/.exec(MARKUP);
+    const CSS = css ? css[1] : "";
+    const rootBlock = (/:root\{[\s\S]*?\n  \}/.exec(CSS) || [""])[0];
+    const afterRoot = CSS.slice(CSS.indexOf(rootBlock) + rootBlock.length);
+
+    check(!/outline:2px solid var\(--brand\)/.test(CSS),
+      "no focus outline still reads the raw --brand — every one of them moved "
+      + "to --brand-ink so a dark scheme can lift the ring off a chrome surface "
+      + "without touching the brand's fixed brand-fill colour");
+    check(!/accent-color:var\(--brand\)/.test(CSS),
+      "the range input's accent-color reads --brand-ink, not --brand — same reason: "
+      + "the slider thumb is ink on a chrome surface, not a brand fill");
+    check(!/dashed var\(--brand\)/.test(CSS),
+      "neither dashed drop-slot border still reads the raw --brand — both are "
+      + "ink/border sites on a white or grey surface, not a brand fill");
+    check((afterRoot.match(/rgba\(var\(--brand-rgb\)/g) || []).length === 0,
+      "no rule outside :root still spells out rgba(var(--brand-rgb),alpha) directly — "
+      + "the three definitions inside :root (--hot, --hot-strong, --focus-glow) are the "
+      + "only home for those tints, so a dark scheme can swap them for washes that are "
+      + "actually visible without hunting down a raw rgba() someplace else");
+  }
 }
 
 /* -------------------------------- 4i. asynchronous writes name their document */
@@ -6202,15 +6232,18 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
     check(/<svg class="about-mark" aria-hidden="true"><use href="#i-logo"\/><\/svg>/.test(about)
        && !/<img\b/i.test(about),
       "About draws the mark from the sprite's one symbol, silent beside the wordmark");
-    /* Both of these said "green". The About mark takes var(--brand), and --brand
-       is #003153 — so the word described neither the rule being checked nor the
-       colour on screen, and would have gone on describing neither for any value
-       of --brand. The colour is read out of the sheet and named in the message
-       instead, which is a claim that can be wrong. */
-    const brandHex = (/--brand:(#[0-9A-Fa-f]{6})/.exec(CSS) || [])[1];
-    check(/\.about-mark\{[^}]*width:78px;[^}]*height:65px;[^}]*color:var\(--brand\)/.test(CSS),
-      "the About mark keeps the box the placeholder reserved and takes the app's own brand "
-      + "colour (" + brandHex + ") through `color`, so one symbol can serve both homes");
+    /* Both of these said "green". The About mark takes var(--brand-ink), and
+       --brand-ink is #003153 — so the word described neither the rule being
+       checked nor the colour on screen, and would have gone on describing
+       neither for any value of --brand-ink. The colour is read out of the
+       sheet and named in the message instead, which is a claim that can be
+       wrong. --brand-ink, not --brand: the mark reads on a chrome surface,
+       so it takes the token a dark scheme can lift without touching the
+       brand FILLS (titlebar, primary buttons), which stay --brand. */
+    const brandInkHex = (/--brand-ink:(#[0-9A-Fa-f]{6})/.exec(CSS) || [])[1];
+    check(/\.about-mark\{[^}]*width:78px;[^}]*height:65px;[^}]*color:var\(--brand-ink\)/.test(CSS),
+      "the About mark keeps the box the placeholder reserved and takes the app's own brand-ink "
+      + "colour (" + brandInkHex + ") through `color`, so one symbol can serve both homes");
     /* This file is the real mark, not the flat placeholder, and what is
        load-bearing follows from that: nothing loads sprites/logo.svg, so it
        cannot break visibly — it can only go stale against the copy that

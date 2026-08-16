@@ -4070,6 +4070,26 @@ try{
     check(pairs.has("--inverse-bg|--inverse-ink"),
       "the (--inverse-bg, --inverse-ink) pair is among them — the second source "
       + "proving .g-code's and .toast's inverse decoupling actually parses");
+    check(pairs.has("--shell|--brand-ink"),
+      "the (--shell, --brand-ink) pair is among them — .rb-tab.on's active-tab "
+      + "ink now reads through a token a dark scheme can lift off --brand");
+    check(pairs.has("--badge-bg|--badge-ink"),
+      "the (--badge-bg, --badge-ink) pair is among them — the 2D badge's fill "
+      + "and ink both read through tokens now, decoupled from --mute/#fff");
+
+    /* Dark Mode step (b1) part 2 deliberately duplicated two values rather than
+       aliasing them: --brand-ink reads #003153 today because that IS --brand
+       where it must read as ink rather than as a fill, and --badge-bg reads
+       #6b7480 today because that IS --mute before the badge is allowed to part
+       from muted text. Both equalities are a claim about the LIGHT scheme only
+       — a later dark step is expected to diverge them on purpose, which is
+       exactly why they are two tokens and not one alias. */
+    check(TOKENS["--brand-ink"] === TOKENS["--brand"],
+      "in the light scheme, --brand-ink still equals --brand byte for byte — got "
+      + TOKENS["--brand-ink"] + " vs " + TOKENS["--brand"]);
+    check(TOKENS["--badge-bg"] === TOKENS["--mute"],
+      "in the light scheme, --badge-bg still equals --mute byte for byte — got "
+      + TOKENS["--badge-bg"] + " vs " + TOKENS["--mute"]);
 
     distinctPairs.forEach(([y, x]) => {
       const fg = TOKENS[y], bg = TOKENS[x];

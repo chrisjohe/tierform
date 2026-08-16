@@ -1369,8 +1369,8 @@ const callCommand = async (M, name) => {
   eq(inkOf(chainTo("tb-mark")), "#fff",
      "the title-bar mark is painted in the bar's own ink — the inherited color only "
      + "reaches the path because the mark's own rule says fill:currentColor");
-  eq(inkOf(aboutChain), "var(--brand)",
-     "and the About mark is painted in --brand, from the color its own rule states — "
+  eq(inkOf(aboutChain), "var(--brand-ink)",
+     "and the About mark is painted in --brand-ink, from the color its own rule states — "
      + "same reason, and it is the only thing that makes one symbol serve both homes");
 }
 
