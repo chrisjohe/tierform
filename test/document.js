@@ -3113,6 +3113,27 @@ async function runSuite(){
       "openEditModal fills the same suggestion list on open");
   }
 
+  /* -------------------------- 5b7. openAddModal clears a stale typed group
+
+     A typed group identifies who is about to be added, not what a future
+     visit to this dialog shares — unlike the grade choice (5b5), which
+     openAddModal keeps on reopen, a group left in the field from a dialog
+     closed earlier must not silently land on whoever is added next. */
+  {
+    const M = makeModule();
+    M.state = M.defaults();
+    M.state.tiers = sixGrades();
+    const tier = M.state.tiers[1].id;
+
+    M.setAdd({tier:tier, group:"Berlin"});
+    M.openAddModal();
+    eq(M.add.group, "",
+      "a stale typed group must not survive a close/reopen — it describes "
+      + "the last person, not the next one");
+    eq(M.add.tier, tier,
+      "…while the grade choice, unlike group, is the one field openAddModal keeps on reopen");
+  }
+
   /* ---------------------------------------- 5c. the Add people dialog
 
      One person per Add, and the dialog stays open. The two halves of that are

@@ -7911,6 +7911,10 @@ function openAddModal(wantTier){
   setAddPhoto(null);
   $("#addName").value = "";
   $("#addRole").value = "";
+  /* A stale typed group must not survive a close/reopen either — same
+     reasoning as Name above, not the shared-across-adds treatment Group gets
+     inside addOnePerson while the dialog stays open. */
+  $("#addGroup").value = "";
   syncAddPhotoInitials();
   syncAddAvailability();
   /* The dialog is fully functional at zero grades now — the First-grade field
