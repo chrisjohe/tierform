@@ -4110,7 +4110,7 @@ function initials(full){
 function nameFromFile(fn){
   let s = fn.replace(/\.[^.]+$/,"").replace(/[_\-.]+/g," ").replace(/\s+/g," ").trim();
   if(s.includes(",")){ const [a,b]=s.split(",",2); s = (b+" "+a).trim(); }
-  return s.replace(/\b\p{L}/gu, c=>c.toUpperCase());
+  return s.replace(/(^|\P{L})(\p{L})/gu, (m,pre,c)=>{ const u=c.toUpperCase(); return pre+(u.length===1?u:c); });
 }
 function tierOf(p){ return state.tiers.find(t=>t.id===p.tierId) || state.tiers[0]; }
 function withAlpha(hex, a){

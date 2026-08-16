@@ -3299,6 +3299,37 @@ async function runSuite(){
       "…and the frame is still the default one — filling the name changes "
       + "nothing about the photo itself");
   }
+  /* ---------------------------------------- 5b2b. nameFromFile title-cases on
+     NON-LETTER boundaries, not ASCII \b — a letter after ä/ö/ü/ß stays as
+     typed instead of being pulled uppercase by JS's ASCII-only \b. Driven
+     through the same picker path as 5b2, so this is the real function every
+     call site uses, not a second copy of its rule. */
+  for(const [filename, want, why] of [
+    ["müller.jpg", "Müller",
+      "a leading letter followed by a non-ASCII letter is title-cased once, "
+      + "not letter-by-letter — the ü must not be pulled uppercase by \\b"],
+    ["anna_müller.jpg", "Anna Müller",
+      "each word gets exactly one capital, umlaut included, after the "
+      + "underscore-to-space separator collapse"],
+    ["ölberg, anna.png", "Anna Ölberg",
+      "the comma swap moves the surname first, and the umlaut starting "
+      + "that surname is still title-cased"],
+    ["ßler.jpg", "ßler",
+      "the ß guard: \"ß\".toUpperCase() is the two-character \"SS\", so it "
+      + "must be left alone rather than turning \"ßler\" into \"SSler\""],
+    ["grace_hopper.jpg", "Grace Hopper",
+      "plain ASCII filenames are title-cased exactly as before"],
+  ]){
+    const M = makeModule();
+    M.state = M.defaults();
+    M.state.tiers = sixGrades();
+    const choice = M.choosePhoto(file(filename));
+    await tick();
+    M.decodes[0].res({data:"data:image/jpeg;base64,BBBB", w:100, h:100});
+    await choice;
+    eq(M.add.name, want, why + " — file " + JSON.stringify(filename)
+      + ", got " + JSON.stringify(M.add.name));
+  }
   {
     /* A typed name is never overwritten — choosing a photo (or replacing one)
        must not clobber it, which is why the fill only happens when the field
