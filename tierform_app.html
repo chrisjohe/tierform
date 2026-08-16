@@ -1994,10 +1994,11 @@
      the split face and four type-and-Enter cycles, which is the whole reason the
      dialog does not close on Add: a dialog that dismissed itself would make the
      second person cost the same as the first.
-     Grade and Group persist across Adds because they are what a run of people
-     usually share; Photo and Name clear because they are what makes each one a
-     different person. Nothing here is document state — these are four ordinary
-     inputs, read once when Add is pressed, so typing in them writes no history. -->
+     Grade alone persists across Adds because it is what a run of people
+     usually shares; Photo, Name, Role and Group clear because they are what
+     makes each one a different person. Nothing here is document state — these
+     are ordinary inputs, read once when Add is pressed, so typing in them
+     writes no history. -->
 <!-- Asked once per import, immediately before it happens, and gone afterwards.
      This replaces the standing default-grade and default-group pair, which was
      invisible state: two controls set at one moment that silently decided where
@@ -7836,11 +7837,13 @@ function askImport(count){
    the roster is built a person at a time, and a dialog that dismissed itself
    would charge full price for every one of them.
 
-   Grade and Group survive an Add and an open/close cycle; Photo and Name do
-   not. A run of people usually shares a grade and a group and differs in the
-   other two, so carrying those forward is what makes the second person cheap —
-   and clearing the two that identify someone is what stops the third person
-   silently inheriting the second's name.
+   Grade alone survives an Add and an open/close cycle; Photo, Name, Role and
+   Group do not. A run of people usually shares a grade and differs in
+   everything else, so carrying the grade forward is what makes the second
+   person cheap — and clearing what identifies someone, group included, is
+   what stops the third person silently inheriting the second's group (or
+   name, or photo). The refilled #groupOptions datalist is what keeps
+   re-entering a repeated group one click rather than a retype.
 
    Nothing in here is document state. Four ordinary inputs, read once when Add
    is pressed, so typing writes no history and needs no edit() session. */
@@ -8145,10 +8148,11 @@ async function addOnePerson(){
   });
   toast(zeroGrades ? "1 grade and 1 person added" : "1 person added");
 
-  /* Ready for the next one: the two fields that identify a person are cleared,
-     the two they share are not, and the caret goes back to the top of that
-     pair. renderRoster has just run inside commit(), so the grade list is
-     already current; only the selection needs keeping. */
+  /* Ready for the next one: everything that describes THIS person clears —
+     name, role, photo, group, first-grade — and the grade selection alone is
+     shared with the next add. The caret goes back to the top of that pair.
+     renderRoster has just run inside commit(), so the grade list is already
+     current; only the selection needs keeping. */
   const keep = $("#addTier").value;
   fillTierOptions($("#addTier"), keep && state.tiers.some(t => t.id === keep)
     ? keep : firstTierId());
@@ -8164,11 +8168,16 @@ async function addOnePerson(){
   /* The well empties with Name, and for the stronger version of the same
      reason: a photo left in it is not a stale field the user can see and
      retype over, it is the previous person's face silently attached to the
-     next one. Role is the same kind of field as Name — it identifies this
-     person, not the next one — so it clears alongside it. */
+     next one. Role and Group are the same kind of field as Name — they
+     identify this person, not the next one — so they clear alongside it. A
+     group typed for this person landing on the next unasked would be the
+     same surprise the close/reopen clear (openAddModal) already guards
+     against; the refilled #groupOptions datalist above is what keeps
+     re-entering a repeated group one click rather than a retype. */
   setAddPhoto(null);
   $("#addName").value = "";
   $("#addRole").value = "";
+  $("#addGroup").value = "";
   syncAddPhotoInitials();
   $("#addName").focus();
   /* The one thing the five refusals above have in common is that nobody was

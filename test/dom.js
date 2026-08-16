@@ -4663,8 +4663,8 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
        && /setAddPhoto\(null\)/.test(add[0]),
       "…it clears Photo and Name for the next person — the photo through its one "
       + "owner, because the well now outlives a single Add");
-    check(!/\$\("#addGroup"\)\.value = ""/.test(add[0]),
-      "…and does NOT clear Group, which the next person usually shares");
+    check(/\$\("#addGroup"\)\.value = ""/.test(add[0]),
+      "…and clears Group too — it described the person just added, not the next one");
     check(/\$\("#addName"\)\.focus\(\)/.test(add[0]),
       "…and puts the caret back where the next person starts");
     /* ONE commit, so one added person is one history entry */

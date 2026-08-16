@@ -590,8 +590,8 @@ const PREAMBLE = `
 
   /* The Add people dialog's fields, as state rather than as DOM. A test drives
      them with setAdd() and reads them back after an Add, which is how "Grade
-     and Group persist while Photo and Name clear" becomes an assertion rather
-     than a screenshot. tierFieldShown/firstGradeFieldShown/templateHintShown
+     alone persists while Photo, Name, Role and Group clear" becomes an
+     assertion rather than a screenshot. tierFieldShown/firstGradeFieldShown/templateHintShown
      are what syncAddAvailability writes now that zero grades is a door, not a
      wall: it toggles which half of the Grade row is on screen instead of
      disabling anything. wellShown is what setAddPhoto's own hidden-toggle
@@ -3166,7 +3166,8 @@ async function runSuite(){
     eq(M.add.name, "", "after Add the name is cleared");
     eq(M.add.files.length, 0, "after Add the photo is cleared");
     eq(M.add.tier, tier, "after Add the grade is KEPT for the next person");
-    eq(M.add.group, "FRA", "after Add the group is kept too");
+    eq(M.add.group, "", "after Add the group is cleared too — it described "
+      + "the person just added, not the next one");
     eq(M.focused[M.focused.length - 1], "#addName", "and focus goes back to the name");
     check(M.toasts.some(t => /1 person added/.test(t)), "the existing toast confirms it");
   }
@@ -3175,12 +3176,12 @@ async function runSuite(){
 
      Role is per-person like Name — it identifies who is being added, not a
      property the next person shares — so it reads into the created person and
-     then clears, while Grade and Group (which the next person usually
-     shares) survive the clear untouched. The placeholder is a second,
-     independent claim: it follows whichever grade is currently selected,
-     through the very policy (tierRole) syncEditModal already uses for
-     #editRole, so switching grades mid-dialog — before anything is typed —
-     shows that grade's own name rather than the previous grade's. */
+     then clears, alongside Group (also per-person now); Grade alone survives
+     the clear untouched. The placeholder is a second, independent claim: it
+     follows whichever grade is currently selected, through the very policy
+     (tierRole) syncEditModal already uses for #editRole, so switching grades
+     mid-dialog — before anything is typed — shows that grade's own name
+     rather than the previous grade's. */
   {
     const M = makeModule();
     M.state = M.defaults();
@@ -3195,10 +3196,11 @@ async function runSuite(){
       "…carrying exactly the role literal the dialog held — got "
       + JSON.stringify(M.state.people[0] && M.state.people[0].role));
 
-    /* (b) after the add, Role clears with Name while Grade/Group persist */
+    /* (b) after the add, Role clears with Name and Group while Grade persists */
     eq(M.add.role, "", "after Add the role is cleared, the same as name and photo");
-    eq(M.add.group, "FRA", "…while group — the test's own literal — is kept for the next person");
-    eq(M.add.tier, g0.id, "…and the grade selection is kept too");
+    eq(M.add.group, "", "…and group clears too — the test's own literal "
+      + "does not survive to the next person");
+    eq(M.add.tier, g0.id, "…while the grade selection is kept");
 
     /* (c) the placeholder follows the grade — two distinct label literals from
        sixGrades(), never read back from the app's own tierRole output, so this
