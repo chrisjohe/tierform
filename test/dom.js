@@ -6250,6 +6250,10 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
       "…and instead names Templates alongside Clear grades");
     check(/layout/.test(tipsBody) && /colour/.test(tipsBody),
       "…and explains that Templates also sets the layout and colours, not just the grades");
+    check(tipsBody.includes("TIERFORM follows your system's light or dark appearance automatically"),
+      "the app has no dark-mode control on purpose, so this sentence is the only place "
+      + "a user learns the design follows the system; deleting it silently would leave "
+      + "dark mode undiscoverable");
   }
   check(/role="dialog"/.test(modal.slice(0, 400)) && /aria-modal="true"/.test(modal.slice(0, 400))
      && /aria-labelledby="infoTitle"/.test(modal.slice(0, 400)),

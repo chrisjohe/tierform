@@ -817,6 +817,51 @@ And the SVG in its real destinations:
 - [ ] PowerPoint (Windows and macOS) — imports, stays vector, text is selectable.
 - [ ] Keynote — imports and scales without rasterising.
 
+## Dark mode
+
+There is no in-app dark-mode control by design — a toggle has nowhere to
+remember its answer, so the app follows `prefers-color-scheme` and Tips says
+so (`test/dom.js` pins that sentence). The suites prove the token pairs and
+the structure; the rest — tint visibility, UA-repainted controls, and the
+live scheme switch — is paint no suite reaches.
+
+- [ ] With the app open, switch the OS appearance between light and dark: the
+      chrome dims live, no reload needed. The sheet itself — and an exported
+      PNG, PDF or SVG — stays a white page in both schemes.
+- [ ] The start view (before a chart exists) is a light island: white cards
+      and dark text, identical in both schemes.
+- [ ] Hover washes (drop zones, start cards) and the focus glow are `rgba`
+      tints, outside the suites' hex-pair scan — their visibility is owned
+      by this checklist alone, the one honest green in the suite work.
+- [ ] Toast, the grade chip's code badge and the roster row's grade badge
+      flip to light-on-dark in the dark scheme (the inverse of their light
+      styling). The About mark and the wordmark are **white** in the dark
+      scheme, never a lifted blue — the brand appears true or white, nothing
+      between.
+- [ ] The Add-people split button's seam (`.rb-primary-toggle` — Save's own
+      caret has no seam, in either scheme) is a translucent white line in
+      the dark scheme.
+- [ ] UA-repainted controls per browser — `<meta name="color-scheme"
+      content="light dark">` is the switch, not app CSS: selects,
+      checkboxes, the Angle slider and any native scrollbar should paint
+      dark, with no white dropdown surviving anywhere.
+
+| | Selects | Checkboxes | Angle slider | Scrollbars |
+|---|---|---|---|---|
+| Safari (macOS) | | | | |
+| Firefox (macOS) | | | | |
+| Chrome / Edge (macOS) | | | | |
+| Chrome / Edge (Windows) | | | | |
+
+**Recorded decisions.**
+- The sheet keeps its drop shadow in the dark scheme rather than gaining a
+  hairline — a white page already separates itself on a dark ground.
+  Owner-checked 2026-08-16.
+- The primary Add-people button deliberately sinks into dark chrome (its own
+  fill sits at roughly 1.0–1.3:1 against the surrounding dark greys); the
+  white label and the seam carry it instead. Accepted 2026-08-16 — reopen
+  only if it reads as broken here, not merely low-contrast.
+
 ## The second dimension *(unchecked)*
 
 `state.groups` and `p.groupId` are the model for a person's group. The suites
