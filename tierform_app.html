@@ -2827,6 +2827,65 @@ function defaults(){
   };
 }
 
+/* The guided tour's own document — a throwaway roster, never seen by the
+   validator or written to disk, that the tour drives so nothing it does can
+   ever touch what the user has open. Built FROM the big4-green template —
+   one writer for the grade ladder, the same TEMPLATES entry Structure's own
+   menu applies — and then edited the way a user could edit it on screen:
+   drop two grades, rename a code, and fold two pairs of bands together.
+   Every person's photo is null, pw/ph are 0 and frame is null: the tour
+   opens with the app already running, and starting an asynchronous decode
+   for a document nobody asked to open is exactly the kind of write the tour
+   swap exists to keep off the user's document — and here there is no user
+   document in play at all yet, so there is nothing to decode for. */
+function demoDoc(){
+  const tpl = TEMPLATES.find(t => t.id === "big4-green");
+  /* Drop Analyst and Junior Staff BEFORE renaming Assistant's code to "A" —
+     doing it the other way round leaves two tiers both coded "A" for a
+     moment, and a find-by-code edit right after would land on whichever one
+     happens to be first. */
+  const tiers = tpl.grades().filter(t => t.code !== "A" && t.code !== "JS");
+  tiers.find(t => t.code === "AS").code = "A";
+  tiers.find(t => t.code === "M").merge = true;
+  tiers.find(t => t.code === "C").merge = true;
+  normalizeGradeLinks(tiers);
+
+  const groups = [newGroup("Litigation"), newGroup("Corporate"), newGroup("Operations")];
+  const tierByCode  = code => tiers.find(t => t.code === code).id;
+  const groupByName = name => groups.find(g => g.label === name).id;
+  const person = (name, code, groupName, role) => ({
+    id:uid(), name:name, tierId:tierByCode(code), groupId:groupByName(groupName),
+    role:role || "", photo:null, pw:0, ph:0, frame:null
+  });
+
+  const people = [
+    person("Jessica Pearson",   "P",  "Corporate",  "Managing Partner"),
+    person("Harvey Specter",    "P",  "Litigation"),
+    person("Louis Litt",        "P",  "Corporate"),
+    person("Donna Paulsen",     "A",  "Operations"),
+    person("Gretchen Bodinski", "A",  "Operations"),
+    person("Samantha Wheeler",  "D",  "Litigation"),
+    person("Alex Williams",     "D",  "Corporate"),
+    person("Katrina Bennett",   "SM", "Corporate"),
+    person("Mike Ross",         "M",  "Litigation"),
+    person("Rachel Zane",       "SC", "Corporate"),
+    person("Harold Gunderson",  "C",  "Litigation"),
+    person("Brian Altman",      "C",  "Corporate")
+  ];
+
+  return Object.assign(defaults(), {
+    title:"Pearson Specter Litt",
+    groupsLabel:"Practice",
+    layout:tpl.layout,
+    accent:tpl.accent,
+    inkOnColour:tpl.ink,
+    nameLabelPosition:tpl.nameLabelPosition,
+    tiers:tiers,
+    groups:groups,
+    people:people
+  });
+}
+
 
 /* ---------------------------------------------------------- importing a roster
 
@@ -3928,6 +3987,71 @@ function resetPerRoster(){
   closeEditModal();
   newGeneration();
 }
+
+/* ---------------------------------------------------------- the guided tour
+
+   The tour drives a throwaway demo document while the user's own document is
+   set aside whole — state, undo history, filename and dirty flag — so a tour
+   step may use the real commit() and can never reach anything of the user's:
+   while the tour runs, the user's document is not current, and it cannot be
+   reached because it is not there.
+
+   `tourSaved` is the one truth of whether the tour is running: null means it
+   is not, and every guard below reads it rather than keeping a second flag
+   that could disagree with it.
+
+   (No tour UI exists yet — no ring, no card, no body class, no Escape
+   handling. This is the swap machinery a later commit builds the chrome on
+   top of.) */
+let tourSaved = null;
+
+/* Refuses while any of the seven modals is open (the one class they all
+   share) or an import is mid-flight, and refuses a second start while
+   already touring — overwriting the one bundle that can restore the user's
+   document would lose it for good. Otherwise closes what New already
+   closes and advances the generation for the same reason New does: a photo
+   decode started for the document being set aside must not land in the
+   demo. */
+function startTour(){
+  if(document.querySelector(".modal-backdrop:not([hidden])")) return false;
+  if(importBusy) return false;
+  if(tourSaved !== null) return false;
+
+  closeMenu(false);
+  closeGradePanel(false);
+  closePersonMenu(false);
+  endEdit();
+  newGeneration();
+
+  tourSaved = {state, history, hIndex, historyPending, docName, dirtyDoc};
+  state = demoDoc();
+  history = [];
+  hIndex = -1;
+  historyPending = false;
+  docName = "";
+  dirtyDoc = false;
+  renderAll();
+  return true;
+}
+
+/* The reverse swap. Advancing the generation again is the same rule in the
+   other direction: a decode started for the demo (there should never be
+   one — every demo photo is null) must not land in the user's restored
+   document, and it is what keeps Undo from letting a stale pre-tour batch
+   become valid once the user's history is live again. */
+function endTour(){
+  if(tourSaved === null) return;
+  endEdit();
+  newGeneration();
+  state          = tourSaved.state;
+  history        = tourSaved.history;
+  hIndex         = tourSaved.hIndex;
+  historyPending = tourSaved.historyPending;
+  docName        = tourSaved.docName;
+  dirtyDoc       = tourSaved.dirtyDoc;
+  tourSaved = null;
+  renderAll();
+}
 /* Everything that can lose unsaved work asks first, and the buttons say what
    they do — "Discard and open" rather than "OK". These are async because the
    dialog is: the browser's own confirm() blocked the thread, which is exactly
@@ -4040,10 +4164,15 @@ function photoPut(src){
 function photoGet(id){ return (id && photoStore.get(id)) || null; }
 
 /* Drop anything no history entry still points at. Live state never references
-   the store — it holds its own bytes — so history is the whole reachable set. */
+   the store — it holds its own bytes — so history is the whole reachable set —
+   EXCEPT while the tour is running: `history` is the demo's own array then,
+   and the user's document is set aside inside tourSaved, still holding the
+   only references to their photos. Walking tourSaved.history too is what
+   stops the demo's first commit from sweeping every one of them away. */
 function photoSweep(){
   const live = new Set();
-  for(const h of history){
+  const reachable = tourSaved ? history.concat(tourSaved.history) : history;
+  for(const h of reachable){
     for(const p of h.state.people) if(p.photoId) live.add(p.photoId);
   }
   for(const [id, src] of photoStore){
@@ -10569,7 +10698,11 @@ $("#csvPick").addEventListener("change", e=>{
 });
 /* the only thing standing between unsaved work and a closed tab */
 window.addEventListener("beforeunload", e=>{
-  if(!dirtyDoc) return;
+  /* Mid-tour the live dirtyDoc belongs to the demo. The flag that means "the
+     user has unsaved work" is the one sitting in the set-aside bundle — the
+     demo's own dirt must never trigger this prompt, because nothing of the
+     user's is unsaved just because the tour demonstrated a commit. */
+  if(!(tourSaved ? tourSaved.dirtyDoc : dirtyDoc)) return;
   e.preventDefault();
   e.returnValue = "";
 });
@@ -10600,6 +10733,9 @@ document.addEventListener("keydown", e=>{
   if(e.key==="Escape" && !$("#pasteModal").hidden){ closePasteModal(); return; }
   if(e.key==="Escape" && !$("#infoModal").hidden){ closeInfoModal(); return; }
   if(e.key==="Escape" && !$("#groupModal").hidden){ closeGroupModal(); return; }
+  /* During the tour you watch, you don't drive: the undo shortcut must reach
+     neither the user's history (set aside) nor the demo's. */
+  if(tourSaved && (e.ctrlKey||e.metaKey) && e.key.toLowerCase()==="z"){ e.preventDefault(); return; }
   if(!(e.ctrlKey||e.metaKey) || e.key.toLowerCase()!=="z") return;
   const tag = document.activeElement && document.activeElement.tagName;
   if(tag==="INPUT" || tag==="TEXTAREA") return;   // let native text undo handle it

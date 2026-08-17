@@ -368,7 +368,12 @@ const DECLS = ["HEX6","CONTRAST_MIN","SVGNS",
                   test. Stays "" throughout this suite: nothing here sets it, so
                   clearRosterSearch's own early return means the search never
                   actually reaches the #rosterSearch stubs below. */
-               "rosterQuery"];
+               "rosterQuery",
+               /* The one truth of whether the guided tour is running: null
+                  when it is not, the whole set-aside user document — state,
+                  history, hIndex, historyPending, docName, dirtyDoc — while
+                  it is. */
+               "tourSaved"];
 /* cloneState is gone: history entries now cross a boundary that swaps photo
    bytes for store ids, so the two directions are named separately. commit()
    and edit() are the only ways state changes, so both come along. */
@@ -389,6 +394,10 @@ const FNS   = ["updateDocLabel","syncNeverSavedBar","markDirty","resetPerRoster"
                   applyTemplate is the one path that reads it, so both come along
                   as a pair rather than one being driven through a stub. */
                "TEMPLATES","applyTemplate",
+               /* demoDoc builds the guided tour's own document FROM TEMPLATES'
+                  big4-green entry; startTour/endTour are the swap that puts it
+                  live in place of the user's document and back again. */
+               "demoDoc","startTour","endTour",
                "defaults","normalizeGradeLinks","reorderGrade","angleIndex","clampFrame",
                "frameLimit","photoPut","photoGet","photoSweep","packState","unpackState",
                "snapshot","canUndo","canRedo","undo","redo","render","commit","endEdit","edit",
@@ -519,6 +528,22 @@ const PREAMBLE = `
   let PROMPT  = null;            // what a text dialog resolves to (null = cancelled)
   let PICKED  = 0;               // times the file picker was opened
   const ASKED = [];              // every dialog raised, for inspecting the wording
+  /* Scripted answer to startTour's one real DOM question: is a modal open.
+     Every one of the seven modals shares the class ".modal-backdrop", toggled
+     by the "hidden" attribute — startTour asks that exact question through
+     document.querySelector, and MODAL_OPEN is the whole of what a test sets
+     to answer it either way. */
+  let MODAL_OPEN = false;
+  /* closeMenu and closeGradePanel are chrome test/dom.js owns — they measure
+     and place ribbon popups this suite has no geometry for — so they are
+     stubbed as plain no-ops here, the same standing as drawChart just above.
+     startTour calls both on its way in; what it does with the rest of the
+     document is this suite's business, not whether a menu happened to be
+     open. menuOpen is stubbed alongside them for the same reason — nothing
+     here opens a menu, so it always answers false. */
+  function menuOpen(){ return false; }
+  function closeMenu(){}
+  function closeGradePanel(){}
   /* The real ask() opens a dialog and resolves when a button is clicked. Here
      it resolves immediately with a scripted answer, so a run stays
      deterministic — but it stays a PROMISE, because these paths are
@@ -673,17 +698,40 @@ const PREAMBLE = `
     n.dataset = {};
     return n;
   }
-  /* Nothing else in this suite touches the document object — every extracted
-     function that would has its DOM stubbed at $() instead — so this exists only
-     for el() and the preview's text nodes. (No backticks in PREAMBLE: it is one
-     template literal, and a quoted identifier in a comment ends it.) */
+  /* Every extracted function that touches the DOM has it stubbed at $()
+     instead, with one exception: startTour reads document.querySelector
+     directly to ask whether a modal is open, which is why this object now
+     answers that question for real, as well as building el() and the
+     preview's text nodes. (No backticks in PREAMBLE: it is one template
+     literal, and a quoted identifier in a comment ends it.) */
   const document = {createElement:stubEl,
                     /* icon() builds its <svg><use> in the SVG namespace, and
                        createElement would give it an inert HTML element of the
                        same name — so the stub answers both, and records which. */
                     createElementNS(ns, tag){ const n = stubEl(tag); n.ns = ns; return n; },
                     contains(){ return false; },
-                    createTextNode(t){ const n = stubEl("#text"); n.textContent = String(t); return n; }};
+                    createTextNode(t){ const n = stubEl("#text"); n.textContent = String(t); return n; },
+                    activeElement: null,
+                    /* startTour's own modal-open check answers for real. Giving
+                       document a querySelector at all also makes syncRowIdentity's
+                       OWN guard (its early "if there is no document.querySelector,
+                       give up" line) start calling through it — that guard was
+                       never reachable before this, because there was nothing here
+                       to call. Every one of its queries is one of a handful of
+                       fixed prefixes suffixed with the row's own data-id
+                       attribute selector, asking "does this roster row exist on
+                       screen" — which it never does in this suite, so answering
+                       null for all of them is the same "nothing built here" this
+                       stub already answers everywhere else, not a new leniency.
+                       Anything outside those two known shapes is a query this
+                       module never saw coming, and shrugging would be
+                       indistinguishable from "the app did not look" (the same
+                       stance stubEl's own querySelector takes). */
+                    querySelector(sel){
+                      if(sel === ".modal-backdrop:not([hidden])") return MODAL_OPEN ? {} : null;
+                      if(sel.indexOf('[data-id="') >= 0) return null;
+                      throw new Error("document.querySelector: unsupported selector " + sel);
+                    }};
   /* Everything the built table says, flattened the way a browser's own
      textContent would read it. This is what makes "the Grade column names NEW"
      an assertion about the emitted cell rather than about a variable. */
@@ -1032,6 +1080,17 @@ function makeModule(){
     + "function pickGrade(e)"  + grabListener("#editTier", "change") + "\n"
     + "function clickRemovePerson()" + grabListener("#editRemoveBtn", "click") + "\n"
     + "function menuClick(e)"  + grabListener("#personMenu", "click") + "\n"
+    /* Two more taken whole, and for the reason every listener above is: the
+       tour's two guards — beforeunload reading the SET-ASIDE dirty flag
+       instead of the live one, and the undo shortcut going inert mid-tour —
+       live in these bodies and nowhere else. Both are bound to window/document
+       directly rather than through a $(selector) call, so grabRawListener
+       finds them by their literal opening text, the same way zoneDrop is
+       found above. */
+    + "function beforeUnload(e)" + grabRawListener(
+        'window.addEventListener("beforeunload", e=>{', "beforeunload") + "\n"
+    + "function keydownHandler(e)" + grabRawListener(
+        'document.addEventListener("keydown", e=>{', "keydown") + "\n"
     + `return {
         addFiles, swapChange, newGeneration, staleWrite, applyPhoto,
         /* the click, not the function it happens to call */
@@ -1173,6 +1232,20 @@ function makeModule(){
         get focused(){ return FOCUSED; },
         newDoc, saveDoc, openDoc, markDirty, updateDocLabel, resetPerRoster, confirmDiscard,
         TEMPLATES, applyTemplate, newTier, defaults, normalizeGradeLinks, reorderGrade, stateLimitProblem,
+        /* The guided tour: demoDoc builds the throwaway document, startTour/
+           endTour are the swap, and tourSaved is read back to prove what a
+           refusal did or did not touch. setModalOpen scripts the one DOM
+           question startTour asks for real. importBusy already exists as a
+           DECL; it needs a setter here so a test can make the tour refuse the
+           way a mid-flight import would. */
+        demoDoc, startTour, endTour,
+        get tourSaved(){ return tourSaved; },
+        setModalOpen(v){ MODAL_OPEN = v; },
+        get importBusy(){ return importBusy; },
+        set importBusy(v){ importBusy = v; },
+        /* The tour's two guards, taken whole above — driven with a synthetic
+           event exactly as the two listeners are driven for real. */
+        beforeUnload, keydownHandler,
         gradeName, moveTarget, moveLabel, moveLabelTo, movePerson, syncRowIdentity,
         /* The drop entry point, plus a way to make its step refuse. The bound
            and the restore are only reachable through a movePerson that stops
@@ -1306,6 +1379,17 @@ const callCommand = async (M, name) => {
   const fn = M.commands[name];
   check(typeof fn === "function", "COMMANDS." + name + " exists and is callable");
   if(typeof fn === "function") await fn();
+};
+/* Section 16's own version of the same tolerance: demoDoc() can be made to
+   throw by a build-order bug (filtering a tier out by code, then resolving a
+   person's grade by that same code), and startTour() calls demoDoc()
+   internally — so every one of 16a through 16f can hit that throw, not only
+   the block that calls demoDoc() directly. Without this, one such mutation
+   would abort every section after the first one that touches it, reporting
+   only "the suite threw" instead of the specific rule that broke. */
+const guarded = async (label, fn) => {
+  try{ await fn(); }
+  catch(e){ check(false, label + " — got: " + ((e && e.message) || e)); }
 };
 
 /* ---------------------------------------------------------- 5d. the two logo
@@ -6583,6 +6667,296 @@ async function runSuite(){
       "…and ONE undo reverses the whole drop — it was a single commit");
   }
 }
+
+/* ---------------------------------------------------------- 16. the guided
+   tour: demoDoc, and the swap that sets the user's document aside
+
+   No tour UI exists yet — no ring, no card, no entry button, no body class,
+   no Escape handling. This section proves the two things a later commit's
+   chrome will depend on: demoDoc() is a document the app itself would
+   accept, and startTour()/endTour() swap the whole document identity —
+   state, undo history, filename, dirty flag — cleanly enough that an undo
+   after the tour behaves exactly as if the tour had never run.
+
+   (This suite already has two sections numbered 13, above — a numbering
+   quirk that predates this change. New sections keep counting up from the
+   actual end of the file rather than reusing a number that already means
+   something else here, so this one is 16.) */
+
+  /* Every one of 16a through 16f runs through guarded(): demoDoc() can be
+     made to throw by a build-order bug (filtering a tier out by code, then
+     resolving a person's grade by that same code — the Assistant-rename trap
+     demoDoc()'s own comment names), and startTour() calls demoDoc()
+     internally, so the throw is reachable from every block below, not only
+     the one that calls demoDoc() directly. Without this, one such mutation
+     would abort every section after the first one that touches it, reporting
+     only "the suite threw" instead of the specific rule that broke — the
+     same tolerance callCommand's own try/catch already gives a renamed
+     COMMANDS entry. */
+
+  /* --- 16a. demoDoc is a legal, photo-less document --- */
+  await guarded("16a completes without throwing", async () => {
+    const M = makeModule();
+    const doc = M.demoDoc();
+    check(M.stateLimitProblem(doc) === null,
+      "the app's own save-gate accepts the demo document — got " + JSON.stringify(M.stateLimitProblem(doc)));
+    check(doc.people.every(p => p.photo === null),
+      "no demo person carries a photo, so the tour starts no image decode");
+    check(doc.people.every(p => p.pw === 0 && p.ph === 0),
+      "…nor any decoded photo dimensions");
+    check(doc.people.every(p => p.frame === null),
+      "…nor a crop frame — nothing is framed with no photo behind it");
+    check(doc.people.every(p => doc.tiers.some(t => t.id === p.tierId)),
+      "every demo person's tierId resolves to one of the demo's own tiers");
+    check(doc.people.every(p => doc.groups.some(g => g.id === p.groupId)),
+      "…and every groupId resolves to one of the demo's own groups");
+    eq(doc.title, "Pearson Specter Litt", "the demo names its own firm");
+    eq(doc.groupsLabel, "Practice", "…and its own group-axis label");
+    eq(JSON.stringify(doc.groups.map(g => g.label)),
+       JSON.stringify(["Litigation","Corporate","Operations"]),
+       "three groups, in this document order — Matrix would read it as row order");
+    eq(JSON.stringify(doc.tiers.map(t => t.code)),
+       JSON.stringify(["P","A","D","SM","M","SC","C"]),
+       "seven grades — Analyst and Junior Staff dropped, Assistant renamed to A");
+    eq(JSON.stringify(doc.tiers.map(t => t.merge)),
+       JSON.stringify([false,false,false,false,true,false,true]),
+       "Manager and Consultant share the band above them; nobody else does");
+    const attachOf = code => doc.tiers.find(t => t.code === code).attach;
+    check(attachOf("A") === true,
+      "Assistant's attach survives the AS-to-A rename — the template states it directly");
+    check(attachOf("M") === true && attachOf("C") === true,
+      "…and normalizeGradeLinks raises attach on both merged grades, asserted through the "
+      + "built tiers rather than restated as a second copy of the rule");
+    check(attachOf("P") === false && attachOf("D") === false
+       && attachOf("SM") === false && attachOf("SC") === false,
+      "nobody else attaches");
+    eq(doc.people.length, 12, "twelve people — the whole cast");
+    eq(doc.people[0].name, "Jessica Pearson", "seated first, in the stated roster order");
+    eq(doc.people[0].role, "Managing Partner", "…carrying her own title");
+    check(doc.people.slice(1).every(p => p.role === ""),
+      "everyone else's role is blank — a grade's own name prints under them instead");
+    eq(doc.accent, "#004225",
+      "the accent is the literal the template ships — not a copy of TEMPLATES' own field");
+    eq(doc.layout, "pyramid", "the demo draws as a pyramid, big4-green's own layout");
+
+    const a = M.demoDoc(), b = M.demoDoc();
+    check(a !== b && a.tiers !== b.tiers && a.people !== b.people && a.groups !== b.groups,
+      "two demoDoc() calls return distinct objects, not one shared document");
+    check(a.tiers[0].id !== b.tiers[0].id,
+      "…with fresh tier ids each time — newTier() runs again rather than handing out "
+      + "one reused set of objects to corrupt");
+  });
+
+  /* --- 16b. the full cycle: swap out, tour, swap back, and a live undo ---
+     Built through the real machinery — commit(), saveDoc(), commit() again —
+     so the pre-tour facts recorded below (docName, dirtyDoc, the rename)
+     are exactly what a user would have left behind, and the closing undo is
+     the assertion the whole step exists for: the stack must still be
+     CONNECTED after the round trip, not merely restored to the same length. */
+  await guarded("16b completes without throwing", async () => {
+    const M = makeModule();
+    M.state = M.defaults();
+    M.state.tiers = sixGrades();
+
+    M.commit("added Ana", () => { M.state.people.push(personIn(M, "Ana Original")); });
+    const anaId = M.state.people[0].id;
+    M.commit("added Bo", () => {
+      const p = personIn(M, "Bo");
+      p.photo = "data:image/png;base64,AAA";
+      M.state.people.push(p);
+    });
+
+    M.setPrompt("acme-roster");
+    eq(await M.saveDoc(false), true, "the user document saves");
+    eq(M.docName, "acme-roster", "…and is named");
+    eq(M.dirtyDoc, false, "…and clean");
+
+    M.commit("renamed Ana", () => {
+      M.state.people.find(p => p.id === anaId).name = "Ana Renamed";
+    });
+    eq(M.dirtyDoc, true, "the rename dirties the document again");
+    eq(M.history.length, 3, "three commits, three history entries, before the tour starts");
+    const preTourHistoryLen = M.history.length;
+
+    check(M.startTour() === true, "startTour succeeds on a clean tree with no modal and no import busy");
+    eq(M.state.title, "Pearson Specter Litt", "the live document is now the demo");
+    eq(M.state.people.length, 12, "…with the demo's own twelve people");
+    eq(M.history.length, 0, "…and an empty history — none of the user's steps are on the live stack");
+    eq(M.dirtyDoc, false, "…and a clean flag — nothing about the demo is unsaved yet");
+    eq(M.docName, "", "…and no filename — the demo was never saved");
+
+    M.commit("switched the demo to swimlanes", () => { M.state.layout = "swimlanes"; }, {render:"all"});
+    eq(M.dirtyDoc, true, "the demo's own commit marks the DEMO dirty");
+    eq(M.history.length, 1, "…and grows the DEMO's own history");
+
+    M.endTour();
+    eq(M.docName, "acme-roster", "endTour restores the user's filename");
+    eq(M.dirtyDoc, true, "…and the user's dirty flag — true, from the rename made before the tour");
+    eq(M.state.people.length, 2, "…and the user's own two people, not the demo's twelve");
+    /* null-safe throughout: a resolver that wrongly finds nobody is a failure
+       to report, not an exception that abandons the rest of the section — the
+       same standing section 13's own kindOf/tierOf helpers take, because a
+       corrupted hIndex after a buggy endTour can point undo at a snapshot
+       that predates Ana ever existing, and .find() then returns undefined. */
+    const anaNow = () => (M.state.people.find(p => p.id === anaId) || {}).name;
+    eq(anaNow(), "Ana Renamed", "…with the rename the user made still in place");
+    eq(M.history.length, preTourHistoryLen, "…and the whole pre-tour undo stack, unchanged");
+
+    M.undo();
+    eq(anaNow(), "Ana Original",
+      "undo after the tour restores the pre-tour rename — the stack is still CONNECTED, "
+      + "not merely the same length as before the tour");
+    check(M.canRedo(), "…and redo is available from there");
+    M.redo();
+    eq(anaNow(), "Ana Renamed", "…giving the rename back");
+  });
+
+  /* --- 16c. photos survive the demo's own sweeps ---
+     The bug this whole step exists to prevent: photoSweep() runs on every
+     commit, including the demo's, and computes the reachable set from the
+     live `history` array. During the tour that array is the demo's — so
+     without tourSaved.history in the sweep, the demo's first commit would
+     purge the set-aside user's photo from photoStore before the tour ever
+     ends. */
+  await guarded("16c completes without throwing", async () => {
+    const M = makeModule();
+    M.state = M.defaults();
+    M.state.tiers = sixGrades();
+    M.commit("added Priya", () => { M.state.people.push(personIn(M, "Priya")); });
+    M.commit("added Tom", () => {
+      const p = personIn(M, "Tom");
+      p.photo = "data:image/png;base64,AAA";
+      M.state.people.push(p);
+    });
+    const tomId = M.state.people[1].id;
+    M.commit("gave Tom a title", () => {
+      M.state.people.find(p => p.id === tomId).role = "Partner";
+    });
+
+    const photoIsLive = () => Array.from(M.photoStore.values()).includes("data:image/png;base64,AAA");
+    check(photoIsLive(), "Tom's photo is reachable in photoStore before the tour ever starts");
+
+    check(M.startTour(), "the tour starts");
+    M.commit("switched the demo to swimlanes", () => { M.state.layout = "swimlanes"; }, {render:"all"});
+    check(photoIsLive(),
+      "…and Tom's photo is STILL in photoStore after the demo's own commit swept — reachable "
+      + "only through tourSaved.history");
+
+    M.endTour();
+    M.undo();   // undoes "gave Tom a title" — unpacks the snapshot taken just before it
+    /* null-safe, as 16b's own lookups are: a corrupted hIndex can point undo
+       at a snapshot from before Tom existed at all, and .find() then returns
+       undefined rather than Tom — a failure to report, not a crash. */
+    const tom = M.state.people.find(p => p.id === tomId) || {};
+    eq(tom.role, "", "undo restored Tom to before his title was set");
+    eq(tom.photo, "data:image/png;base64,AAA",
+      "…and his photo round-tripped through the store intact across the boundary photoSweep "
+      + "almost swept it out of");
+  });
+
+  /* --- 16d. refusals leave the user's document exactly where it was --- */
+  await guarded("16d completes without throwing", async () => {
+    const M = makeModule();
+    M.state = M.defaults();
+    M.state.tiers = sixGrades();
+    const original = M.state;   // identity, not a clone
+
+    M.setModalOpen(true);
+    check(M.startTour() === false, "a modal open refuses the tour");
+    check(M.state === original, "…the live state is untouched — same object");
+    check(M.tourSaved === null, "…and nothing was set aside");
+    M.setModalOpen(false);
+
+    M.importBusy = true;
+    check(M.startTour() === false, "an import mid-flight refuses the tour");
+    check(M.state === original, "…untouched");
+    check(M.tourSaved === null, "…nothing set aside");
+    M.importBusy = false;
+
+    check(M.startTour() === true, "the tour starts once nothing is in the way");
+    const bundle = M.tourSaved;
+    check(!!bundle && bundle.state === original,
+      "the set-aside bundle holds the user's ORIGINAL state object");
+    check(M.startTour() === false, "a second start mid-tour is refused");
+    check(M.tourSaved === bundle,
+      "…and the ORIGINAL bundle is still there — a second start did not overwrite it with a "
+      + "fresh (and now-unrecoverable) one");
+    check(M.tourSaved.state === original,
+      "…still pointing at the user's real state, not the demo it would have replaced it with");
+  });
+
+  /* --- 16e. the tour is a document-identity boundary, both ways --- */
+  await guarded("16e completes without throwing", async () => {
+    const M = makeModule();
+    M.state = M.defaults();
+    M.state.tiers = sixGrades();
+
+    const genBefore = M.docGen;
+    check(M.startTour(), "the tour starts");
+    const genMidTour = M.docGen;
+    check(genMidTour !== genBefore, "starting the tour advances the generation");
+    check(M.staleWrite(genBefore, null) !== null,
+      "a decode captured before the tour is stale once it is running — got "
+      + JSON.stringify(M.staleWrite(genBefore, null)));
+
+    M.endTour();
+    check(M.docGen !== genMidTour,
+      "ending the tour advances the generation again — a decode started FOR the demo must "
+      + "not land in the user's restored document");
+    check(M.staleWrite(genMidTour, null) !== null,
+      "a decode captured mid-tour is stale once the tour has ended — got "
+      + JSON.stringify(M.staleWrite(genMidTour, null)));
+  });
+
+  /* --- 16f. the two guards read the SET-ASIDE flag, and the shortcut goes inert --- */
+  await guarded("16f completes without throwing", async () => {
+    const M = makeModule();
+    M.state = M.defaults();
+    M.state.tiers = sixGrades();
+    M.commit("added a person", () => { M.state.people.push(personIn(M, "One")); });
+    M.commit("added another", () => { M.state.people.push(personIn(M, "Two")); });
+
+    /* beforeunload: mid-tour the flag that matters is the SET-ASIDE one, not
+       the live (demo) one. */
+    check(M.startTour(), "the tour starts");
+    let prevented = false;
+    const evt = {preventDefault(){ prevented = true; }, returnValue:""};
+
+    M.tourSaved.dirtyDoc = true;   // the user left unsaved work behind
+    M.dirtyDoc = false;            // …but the demo itself is clean
+    M.beforeUnload(evt);
+    check(prevented, "the set-aside user document is dirty, so beforeunload still guards the tab");
+
+    M.tourSaved.dirtyDoc = false;  // the user's own document was clean
+    M.dirtyDoc = true;             // …the demo picked up dirt of its own, showing the tour
+    prevented = false;
+    M.beforeUnload(evt);
+    check(!prevented,
+      "the demo's own dirt is not the user's — nothing of theirs is unsaved, so no guard fires");
+    M.endTour();
+
+    /* keydown: the undo shortcut reaches neither the user's history (set
+       aside) nor the demo's, for as long as the tour runs. */
+    check(M.startTour(), "the tour starts again");
+    M.commit("switched the demo to swimlanes", () => { M.state.layout = "swimlanes"; }, {render:"all"});
+    const demoHistBefore = M.history.length, demoPendingBefore = M.historyPending;
+    prevented = false;
+    M.keydownHandler({key:"z", ctrlKey:true, shiftKey:false, preventDefault(){ prevented = true; }});
+    check(prevented, "Ctrl+Z mid-tour still calls preventDefault, so the browser does not act on it either");
+    eq(M.history.length, demoHistBefore,
+      "…but it never reaches undo() — the demo's own history is untouched even though the "
+      + "demo has something to undo");
+    eq(M.historyPending, demoPendingBefore, "…and neither does its pending flag");
+
+    M.endTour();
+    const userPendingBefore = M.historyPending;
+    prevented = false;
+    M.keydownHandler({key:"z", ctrlKey:true, shiftKey:false, preventDefault(){ prevented = true; }});
+    check(prevented, "Ctrl+Z still prevents default once the tour has ended");
+    check(M.historyPending !== userPendingBefore,
+      "…and now DOES reach the real undo() — historyPending flips exactly as undo() always "
+      + "makes it, proving the shortcut is live again");
+  });
 
 }
 
