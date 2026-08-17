@@ -3904,8 +3904,11 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
       "no code rewrites a data-cmd, so picking a format cannot change any button's command");
   }
 
-  /* --- the split button --- */
-  const split = /<div class="split rb-lead">[\s\S]*?<\/div>\s*<\/div>/.exec(groups[0].body);
+  /* --- the split button ---
+     Carries id="saveSplit" now: the guided tour's own Start-tab step rings
+     this wrapper whole, because [data-cmd="save"] alone would resolve to
+     the QAT's own Save button instead (the first in DOM order). */
+  const split = /<div class="split rb-lead" id="saveSplit">[\s\S]*?<\/div>\s*<\/div>/.exec(groups[0].body);
   check(!!split, "Save copy is still a split button");
   if(split){
     check(/data-cmd="save"/.test(split[0]), "the split's primary action is the save command");
@@ -8596,21 +8599,37 @@ const VOID = ["input","br","img","hr","meta","link"];
 
 /* ---------------------------------------------------------- 8. the guided
    tour's own chrome: the spotlight ring, the step card, the click-blocker,
-   the three-step script and the sample-roster marker. document.js owns the
-   swap (startTour/endTour/tourGoto and their state); this suite owns
+   the thirteen-step script and the sample-roster marker. document.js owns
+   the swap (startTour/endTour/tourGoto and their state); this suite owns
    everything that never touches state — markup, CSS and the static shape of
    TOUR itself. */
 {
   /* --- TOUR anchors resolve — the sprite-symbol shape: a class check over
-     every row, not a list of the three that exist today. TOUR's own rows are
-     simple object literals with no nested braces, so a lazy bracket match is
-     enough here, the same as COMMANDS' own extraction elsewhere in this
-     file — document.js's more general grabDecl needs a mask because it also
-     has to survive arbitrary function bodies; this does not. */
+     every row, not a list of the thirteen that exist today. The row-prefix
+     regex below only reads up through the anchor literal, so it does not
+     care that three rows (Layout, Page, Name labels) now carry a `run`
+     function body with braces of its own after that point — it never looks
+     that far. What DOES care is the row COUNT: a row whose "{tab:" opener
+     the regex failed to match would silently vanish from `rows` rather than
+     fail loudly, so the count is cross-checked against a raw count of
+     "{tab:" occurrences in the same source — the same class-check spirit as
+     COMMANDS' own extraction elsewhere in this file. */
   const tourSrc = (/const TOUR = \[([\s\S]*?)\n\];/.exec(SCRIPT) || ["", ""])[1];
   check(tourSrc.length > 0, "TOUR is readable as a top-level array literal");
   const rows = matchAll(/\{tab:"([a-z]+)",\s*anchor:('[^']*'|"[^"]*"),/g, tourSrc);
-  check(rows.length >= 3, "TOUR has at least 3 rows — got " + rows.length);
+  const rowOpeners = matchAll(/\{tab:"/g, tourSrc);
+  check(rows.length === 13, "TOUR has thirteen rows — got " + rows.length);
+  check(rows.length === rowOpeners.length,
+    "…and the row-prefix regex missed none of them — " + rowOpeners.length
+    + " \"{tab:\" openers in the source but only " + rows.length + " matched");
+
+  /* --- no em-dash anywhere in the tour's own copy — the owner's wording
+     rule for tour-facing text, checked once over the whole table rather
+     than per row so a fourteenth row nobody remembered to check stays
+     covered. U+2014 by code point, not the character typed in a regex
+     literal, so this file's own source encoding cannot mask a failure. */
+  check(tourSrc.indexOf("—") < 0,
+    "no em-dash in any TOUR title or body — the owner's wording rule for tour-facing copy");
 
   /* --- TOUR tabs are real hooks — the second writer, never a restated list --- */
   const tabHooks = uniq(matchAll(/<button[^>]*class="rb-tab[^"]*"[^>]*data-tab="([a-z]+)"/g,
@@ -8708,6 +8727,31 @@ const VOID = ["input","br","img","hr","meta","link"];
      walking the keyboard into the ribbon behind the card --- */
   check(/trapTab\("#tourCard"\);/.test(SCRIPT),
     "#tourCard is in the Tab trap list beside the seven modals");
+
+  /* --- the two tour ENTRY tooltips carry the same no-em-dash rule as the
+     table itself, read off their own literals rather than folded into the
+     TOUR scan above — they live in the ribbon markup and the start-view
+     footer builder, neither of which is part of the TOUR array. --- */
+  const tourBtnTitle = (/id="tourBtn"[\s\S]{0,200}?title="([^"]*)"/.exec(MARKUP) || ["", ""])[1];
+  check(tourBtnTitle.length > 0, "#tourBtn's tooltip is readable");
+  check(tourBtnTitle.indexOf("—") < 0, "#tourBtn's tooltip carries no em-dash");
+  const footTourTitle = (/title:"(A short guided tour[^"]*)"/.exec(SCRIPT) || ["", ""])[1];
+  check(footTourTitle.length > 0, "the start-view footer's Tour tooltip is readable");
+  check(footTourTitle.indexOf("—") < 0, "the start-view footer's Tour tooltip carries no em-dash");
+
+  /* --- placeTour() is the geometry half of showTourStep, re-run on scroll
+     and resize the same way placeGradePanel/placePersonMenu are — move,
+     never rebuild. Read off the two listener bodies the way this suite
+     already locates them, rather than a bare SCRIPT.includes, which would
+     pass even if placeTour landed in some unrelated listener instead. --- */
+  const resizeBody = (/addEventListener\("resize", \(\)=>\{([\s\S]*?)\}\);/.exec(SCRIPT) || ["", ""])[1];
+  check(resizeBody.length > 0, "the resize listener body is readable");
+  check(/\bplaceTour\(\);/.test(resizeBody),
+    "the resize listener re-places the tour chrome — got " + JSON.stringify(resizeBody));
+  const scrollBody = (/document\.addEventListener\("scroll", \(\)=>\{([\s\S]*?)\}, true\);/.exec(SCRIPT) || ["", ""])[1];
+  check(scrollBody.length > 0, "the capture scroll listener body is readable");
+  check(/\bplaceTour\(\);/.test(scrollBody),
+    "the scroll listener re-places the tour chrome — got " + JSON.stringify(scrollBody));
 }
 
 /* ---------------------------------------------------------- report */

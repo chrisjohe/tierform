@@ -374,8 +374,13 @@ const DECLS = ["HEX6","CONTRAST_MIN","SVGNS",
                   history, hIndex, historyPending, docName, dirtyDoc — while
                   it is. tourStep is the second half of the tour's own state,
                   which step is showing; TOUR is the one table both tourGoto
-                  (grabbed below) and showTourStep (stubbed above) read. */
-               "tourSaved", "tourStep", "TOUR"];
+                  (grabbed below) and showTourStep (stubbed above) read.
+                  tourCount is the live step count tourGoto writes and the
+                  Next listener reads, so a skip shrinks what "last step"
+                  means; tourCurrent is the step showTourStep last showed,
+                  which placeTour (dom.js's own ground, not driven here)
+                  reads back on scroll/resize. */
+               "tourSaved", "tourStep", "TOUR", "tourCount", "tourCurrent"];
 /* cloneState is gone: history entries now cross a boundary that swaps photo
    bytes for store ids, so the two directions are named separately. commit()
    and edit() are the only ways state changes, so both come along. */
@@ -402,7 +407,14 @@ const FNS   = ["updateDocLabel","syncNeverSavedBar","markDirty","resetPerRoster"
                   is the ONE navigation path startTour and the step buttons
                   both call — real here, unlike showTourStep (a PREAMBLE stub
                   above), because it is what writes state, not chrome. */
-               "demoDoc","startTour","endTour","tourGoto",
+               /* tourLiveSteps is the skip rule: which TOUR rows are on
+                  screen right now, in order — tourGoto reads it to build the
+                  live list it replays and shows, and it is real here (unlike
+                  showTourStep) because it is what decides state, not chrome:
+                  it calls the real selectTab (stubbed above) and the real
+                  document.querySelector (RECTS above) to measure each row's
+                  own anchor. */
+               "demoDoc","startTour","endTour","tourGoto","tourLiveSteps",
                "defaults","normalizeGradeLinks","reorderGrade","angleIndex","clampFrame",
                "frameLimit","photoPut","photoGet","photoSweep","packState","unpackState",
                "snapshot","canUndo","canRedo","undo","redo","render","commit","endEdit","edit",
@@ -703,6 +715,15 @@ const PREAMBLE = `
     n.dataset = {};
     return n;
   }
+  /* selectTab is chrome — dom.js owns the tab/pane machinery, not this
+     suite — so it is a recording no-op rather than the real function.
+     tourLiveSteps() calls it once per TOUR row, before measuring that row's
+     own anchor, and showTourStep() calls it once more for the step landed
+     on; recording every call is what keeps that measure-behind-the-scenes
+     behaviour observable without this suite growing any tab/pane state of
+     its own to keep in sync. */
+  const TABS_SELECTED = [];
+  function selectTab(name, focusTab){ TABS_SELECTED.push(name); }
   /* body.tour-on is the ONE truth the CSS reads for tour visibility — the
      same standing body.roster-hidden has for the panel — and this suite's
      whole interest in it is behavioural: that startTour/endTour write it on
@@ -717,9 +738,38 @@ const PREAMBLE = `
      for. Stubbed here to record which step it was asked to show, which is
      what proves tourGoto's own replay loop calls it once per step, in order,
      without embedding any of that geometry. Declared here rather than pulled
-     from FNS, so this stub — not the real one — is what tourGoto calls. */
+     from FNS, so this stub — not the real one — is what tourGoto calls.
+     showTourStep's own signature is (step, pos, count) now that a skipped
+     step can shift both — SHOWN records all three, plus the row's own
+     anchor, so "the run fired at the step whose anchor is #layoutBtn, not
+     at a fixed index" is an assertion about what was actually shown rather
+     than a recomputation of the same skip logic the app performs. */
   const SHOWN = [];
-  function showTourStep(i){ SHOWN.push(i); }
+  function showTourStep(step, pos, count){
+    SHOWN.push({pos:pos, count:count, anchor:step.anchor});
+  }
+  /* Every TOUR anchor's rect, keyed by its own literal selector — a small
+     non-zero box by default, so tourLiveSteps() keeps every step live
+     unless a test narrows one on purpose through setRect(). Anchors are the
+     app's own TOUR rows' literals; a row this map has no entry for throws
+     below rather than silently answering null, which is what makes a ninth
+     anchor nobody added here fail loudly instead of vanishing from the tour. */
+  const RECTS = {
+    '[data-cmd="addPeople"]': {width:100, height:24},
+    "#exportMenuBtn":         {width:100, height:24},
+    "#saveSplit":             {width:100, height:24},
+    "#qat":                   {width:100, height:24},
+    "#tiers":                 {width:100, height:24},
+    '[data-cmd="groups"]':    {width:100, height:24},
+    "#roster":                {width:100, height:24},
+    "#sheet":                 {width:100, height:24},
+    "#layoutBtn":             {width:100, height:24},
+    "#pageBtn":               {width:100, height:24},
+    "#nameLabelsBtn":         {width:100, height:24},
+    "#accentBtn":             {width:100, height:24},
+    '[data-cmd="tour"]':      {width:100, height:24}
+  };
+  function setRect(sel, wh){ RECTS[sel] = wh; }
   /* Every extracted function that touches the DOM has it stubbed at $()
      instead, with one exception: startTour reads document.querySelector
      directly to ask whether a modal is open, which is why this object now
@@ -749,13 +799,17 @@ const PREAMBLE = `
                        screen" — which it never does in this suite, so answering
                        null for all of them is the same "nothing built here" this
                        stub already answers everywhere else, not a new leniency.
-                       Anything outside those two known shapes is a query this
-                       module never saw coming, and shrugging would be
-                       indistinguishable from "the app did not look" (the same
-                       stance stubEl's own querySelector takes). */
+                       tourLiveSteps() queries every TOUR anchor in turn — RECTS
+                       above answers those, and a selector matching none of the
+                       three known shapes is a query this module never saw
+                       coming, where shrugging would be indistinguishable from
+                       "the app did not look" (the same stance stubEl's own
+                       querySelector takes). */
                     querySelector(sel){
                       if(sel === ".modal-backdrop:not([hidden])") return MODAL_OPEN ? {} : null;
                       if(sel.indexOf('[data-id="') >= 0) return null;
+                      if(Object.prototype.hasOwnProperty.call(RECTS, sel))
+                        return {getBoundingClientRect(){ return RECTS[sel]; }};
                       throw new Error("document.querySelector: unsupported selector " + sel);
                     }};
   /* Everything the built table says, flattened the way a browser's own
@@ -1301,9 +1355,16 @@ function makeModule(){
            off the function's text; tourShown is showTourStep's own call log
            (named apart from the existing "shown" getter above, which is the
            document-status strip's). The three buttons are driven the way a
-           click drives them, through the real delegated bodies grabbed above. */
-        tourGoto,
+           click drives them, through the real delegated bodies grabbed above.
+           tourLiveSteps and tourCount are the skip rule's own reads; setRect
+           is how a test narrows one TOUR anchor's rect to zero to drop its
+           step out, and tourCurrent is the row placeTour (dom.js's ground)
+           would re-measure. */
+        tourGoto, tourLiveSteps,
         get tourStep(){ return tourStep; },
+        get tourCount(){ return tourCount; },
+        get tourCurrent(){ return tourCurrent; },
+        setRect,
         TOUR,
         get classes(){ return CLASSES; },
         get tourShown(){ return SHOWN; },
@@ -6795,6 +6856,15 @@ async function runSuite(){
     check(attachOf("P") === false && attachOf("D") === false
        && attachOf("SM") === false && attachOf("SC") === false,
       "nobody else attaches");
+    /* Owner amendment: the template ships Assistant right-aligned, and
+       attached to Partner above it that reads lopsided on screen — demoDoc
+       centres it explicitly. A CLASS check over every tier, not a single
+       check on "A" alone: every OTHER tier here is un-stated and already
+       centred by newTier's own default, so this is what catches the next
+       tier nobody thought of drifting off "center" too. */
+    check(doc.tiers.every(t => t.align === "center"),
+      "every demo tier reads align \"center\" — got "
+      + JSON.stringify(doc.tiers.map(t => t.code + ":" + t.align)));
     eq(doc.people.length, 12, "twelve people — the whole cast");
     eq(doc.people[0].name, "Jessica Pearson", "seated first, in the stated roster order");
     eq(doc.people[0].role, "Managing Partner", "…carrying her own title");
@@ -7075,31 +7145,38 @@ async function runSuite(){
     eq(M.tourStep, 0, "…and tourStep reads back the step just gone to");
   });
 
-  /* --- 16i. the buttons: Back is a no-op at step 0, Next walks the table and
-     ends the tour at the last step instead of walking past it, X ends the
-     tour from anywhere --- */
+  /* --- 16i. the buttons: Back is a no-op at step 0, Next walks the full
+     thirteen-step table and ends the tour at the last step instead of
+     walking past it, X ends the tour from anywhere. tourShown's records are
+     {pos, count, anchor} — showTourStep's new signature — so this walks the
+     live count off tourCount rather than a bare TOUR.length that would be
+     wrong the moment any step is skipped (16l covers a skip itself). --- */
   await guarded("16i completes without throwing", async () => {
     const M = makeModule();
     M.state = M.defaults();
     M.state.tiers = sixGrades();
     check(M.startTour(), "the tour starts");
     eq(M.tourStep, 0, "…opening on step 0");
-    eq(M.tourShown.join(","), "0", "…and showTourStep was called once, for step 0");
+    eq(M.tourCount, 13, "…with all thirteen TOUR rows live — nothing here narrows a rect");
+    eq(M.tourShown.length, 1, "…and showTourStep was called once, for step 0");
+    eq(M.tourShown[0].pos, 0, "…recorded at position 0");
+    eq(M.tourShown[0].count, 13, "…out of a live count of 13");
 
     const shownBefore = M.tourShown.length;
     M.clickTourBack();
     eq(M.tourStep, 0, "Back at step 0 is a no-op — tourStep does not move");
     eq(M.tourShown.length, shownBefore, "…and no rebuild is recorded — tourGoto was never called");
 
-    M.clickTourNext();
-    eq(M.tourStep, 1, "Next walks to step 1");
-    M.clickTourNext();
-    eq(M.tourStep, 2, "…then to step 2 — TOUR's own length is 3, so this is the last step");
-    eq(M.tourShown.slice(-2).join(","), "1,2", "…both rebuilds recorded, in order");
+    for(let i = 1; i <= 12; i++){
+      M.clickTourNext();
+      eq(M.tourStep, i, "Next walks to step " + i);
+    }
+    eq(M.tourShown.slice(-2).map(s => s.pos).join(","), "11,12",
+      "…the last two rebuilds recorded, in order, by position");
 
     const shownAtEnd = M.tourShown.length;
     M.clickTourNext();
-    check(M.tourSaved === null, "Next at the last step ends the tour instead of walking further");
+    check(M.tourSaved === null, "Next at the last step (12) ends the tour instead of walking further");
     eq(M.tourShown.length, shownAtEnd,
       "…and does NOT call tourGoto — no further rebuild is recorded past the last step");
     const last = M.classes[M.classes.length - 1];
@@ -7142,6 +7219,200 @@ async function runSuite(){
     }catch(e){ threw = true; }
     check(!threw, "an ordinary key, not touring, passes through the gate without throwing");
     eq(M.history.length, genBefore, "…and reaches none of the tour's own branches — nothing moved");
+  });
+
+  /* --- 16k. Exactly THREE demonstrated mutations (owner amendment after
+     seeing the tour live): a SET-equality class check over the whole table,
+     not a claim about any one row's position — the day a fourteenth row
+     grows a `run`, or one of these three moves, this is what has to notice.
+     Every effect is driven through the REAL replay (tourGoto), not read off
+     a row's source text, so a `run` that lied about what it does would
+     still be caught here. */
+  await guarded("16k completes without throwing", async () => {
+    const M = makeModule();
+    M.state = M.defaults();
+    M.state.tiers = sixGrades();
+
+    const runnerAnchors = M.TOUR.filter(r => typeof r.run === "function")
+      .map(r => r.anchor).sort();
+    eq(runnerAnchors.join(","), ["#layoutBtn", "#nameLabelsBtn", "#pageBtn"].sort().join(","),
+      "exactly the three demonstrated rows carry a run, by anchor SET — got "
+      + JSON.stringify(runnerAnchors));
+
+    check(M.startTour(), "the tour starts");
+
+    M.tourGoto(7);   // "A print preview" — immediately before any run
+    eq(M.state.layout, "pyramid", "before the first run: layout is still the template's own");
+    eq(M.state.page, "landscape", "…page is still the template's own");
+    eq(M.state.nameLabelPosition, "next",
+      "…and name label position is big4-green's own literal choice");
+
+    M.tourGoto(8);   // the Layout step
+    eq(M.tourShown[M.tourShown.length - 1].anchor, "#layoutBtn",
+      "confirmed by the anchor showTourStep was actually handed, not a recomputed position");
+    eq(M.state.layout, "swimlanes", "the Layout run flips layout");
+    eq(M.state.page, "landscape", "…and writes nothing else yet — page still untouched");
+    eq(M.state.nameLabelPosition, "next", "…nor name label position");
+    eq(M.history.length, 1, "…as exactly one commit so far");
+
+    M.tourGoto(9);   // the Page step
+    eq(M.tourShown[M.tourShown.length - 1].anchor, "#pageBtn",
+      "confirmed by the anchor showTourStep was actually handed");
+    eq(M.state.layout, "swimlanes", "…layout still swimlanes, from the earlier run");
+    eq(M.state.page, "portrait", "the Page run turns the sample to portrait");
+    eq(M.state.nameLabelPosition, "next", "…nor name label position, yet");
+    eq(M.history.length, 2, "…two commits now, one per run so far");
+
+    M.tourGoto(10);  // the Name labels step
+    eq(M.tourShown[M.tourShown.length - 1].anchor, "#nameLabelsBtn",
+      "confirmed by the anchor showTourStep was actually handed");
+    eq(M.state.layout, "swimlanes", "…layout still swimlanes");
+    eq(M.state.page, "portrait", "…page still portrait");
+    eq(M.state.nameLabelPosition, "below", "the Name labels run moves labels below the photos");
+    eq(M.history.length, 3, "…three commits, one per run, in row order");
+    eq(M.dirtyDoc, true, "…and the demo is dirty");
+    eq(M.state.accent, "#004225",
+      "all three runs together wrote only their OWN fields — accent is still the template's "
+      + "own literal");
+    eq(M.state.title, "Pearson Specter Litt", "…and title too — the demo's own literal, untouched");
+
+    /* Back across each run boundary reverts exactly that run's own field —
+       replay-from-scratch, not undo, so the OTHER two runs' effects survive
+       intact each time. */
+    M.tourGoto(9);
+    eq(M.state.nameLabelPosition, "next",
+      "stepping back across the Name-labels run reverts JUST it");
+    eq(M.state.page, "portrait", "…the Page run's own field is untouched by that step back");
+    eq(M.state.layout, "swimlanes", "…and so is the Layout run's");
+
+    M.tourGoto(8);
+    eq(M.state.page, "landscape", "stepping back across the Page run reverts JUST it");
+    eq(M.state.layout, "swimlanes", "…the Layout run's own field is untouched by that step back");
+
+    M.tourGoto(7);
+    eq(M.state.layout, "pyramid", "stepping back across the Layout run reverts JUST it");
+    eq(M.history.length, 0,
+      "…with an empty history — replay-from-scratch discarded every commit, not undo");
+  });
+
+  /* --- 16l. The skip rule: a hidden anchor drops its step out, the count and
+     the numbering are computed from what remains, and a run travels WITH its
+     row rather than living at a fixed index. Driven by anchor identity
+     throughout — never a magic position number — because the position is
+     exactly the thing the skip is supposed to be allowed to move. */
+  await guarded("16l completes without throwing", async () => {
+    const M = makeModule();
+    M.state = M.defaults();
+    M.state.tiers = sixGrades();
+
+    M.setRect("#roster", {width:0, height:0});
+    const live1 = M.tourLiveSteps();
+    eq(live1.length, 12, "the roster step drops out of the live list — got " + live1.length);
+    check(!live1.some(r => r.anchor === "#roster"), "…and #roster itself is the one missing");
+
+    check(M.startTour(), "the tour starts with the roster step's anchor at zero");
+    eq(M.tourCount, 12, "tourGoto's own count shrank to match the live list");
+    eq(M.tourShown[M.tourShown.length - 1].count, 12,
+      "…and showTourStep was handed the shrunk count, not TOUR.length");
+
+    /* SHOWN's own anchor order is the record of what was actually shown —
+       not a position this test recomputes on its own, which could not tell
+       a genuine skip from a coincidence. */
+    const lastAnchor = () => M.tourShown[M.tourShown.length - 1].anchor;
+    let guard = 0;
+    while(lastAnchor() !== '[data-cmd="groups"]' && guard++ < 20) M.clickTourNext();
+    M.clickTourNext();
+    eq(lastAnchor(), "#sheet",
+      "Next from the groups step skips straight past the hidden roster step to #sheet — "
+      + "got " + JSON.stringify(lastAnchor()));
+
+    guard = 0;
+    while(lastAnchor() !== "#layoutBtn" && guard++ < 20) M.clickTourNext();
+    eq(M.state.layout, "swimlanes",
+      "the run still fires once its own row comes up, at whatever position the skip left "
+      + "it — being walked to by anchor, not by a fixed index, is the point");
+
+    /* Next must read the LIVE count, not TOUR.length: with one row hidden
+       there are only twelve live steps, so the true last one is reached
+       BEFORE tourStep+1 reaches TOUR's own thirteen — a listener comparing
+       against TOUR.length would call tourGoto() one step too far here
+       instead of ending the tour. */
+    guard = 0;
+    while(lastAnchor() !== '[data-cmd="tour"]' && guard++ < 20) M.clickTourNext();
+    eq(M.tourStep, M.tourCount - 1, "…and that is the true last live position");
+    M.clickTourNext();
+    check(M.tourSaved === null,
+      "Next at the true last live step ends the tour — a listener still comparing against "
+      + "TOUR.length would re-enter tourGoto instead, clamp back to the same step, and never end");
+
+    /* Now the Layout run's own row is the one hidden too, alongside the
+       roster step already hidden above — a full walk over every live
+       position must never see layout become anything but pyramid. The
+       skip is per-row, though, not table-wide: the Page and Name-labels
+       runs' own rows are still live, so THEIR mutations must still fire
+       once the walk reaches them. */
+    M.setRect("#layoutBtn", {width:0, height:0});
+    check(M.startTour(), "the tour starts again with both anchors at zero");
+    const live2 = M.tourLiveSteps();
+    eq(live2.length, 11,
+      "both the roster step and the Layout step are gone now — eleven remain — got "
+      + live2.length);
+    check(!live2.some(r => r.anchor === "#layoutBtn"), "…#layoutBtn itself is the second missing row");
+    for(let i = 0; i < live2.length; i++){
+      M.tourGoto(i);
+      check(M.state.layout === "pyramid",
+        "layout stays pyramid at live position " + i + " — the Layout row never shows, so its "
+        + "run never fires — got " + M.state.layout);
+    }
+    eq(M.state.page, "portrait",
+      "…yet the Page run still fires once its own (still-live) row is reached — hiding one "
+      + "run's row does not skip the others");
+    eq(M.state.nameLabelPosition, "below",
+      "…and so does the Name-labels run, for the same reason");
+    M.endTour();
+
+    M.setRect("#roster", {width:100, height:24});
+    M.setRect("#layoutBtn", {width:100, height:24});
+    eq(M.tourLiveSteps().length, 13, "restoring both rects brings the live list back to thirteen");
+  });
+
+  /* --- 16m. The never-saved bar stays quiet about the demo's own dirt.
+     Driven through the real callers, the same way section 1 establishes the
+     baseline this step's middle assertion has to differ from: markDirty()
+     for an edit, updateDocLabel() to force the repaint the way section 3's
+     own comment says renderAll (not reachable from this module — see the
+     PREAMBLE stub above) would have triggered in the real app. */
+  await guarded("16m completes without throwing", async () => {
+    const M = makeModule();
+    M.state = M.defaults();
+    M.state.tiers = sixGrades();
+
+    /* baseline, unrelated to the tour: a dirty, unnamed USER document shows
+       the bar — the pre-existing rule this step must not disturb. */
+    check(M.neverSavedBar.hidden, "a clean untitled document keeps the bar hidden");
+    M.markDirty();
+    check(!M.neverSavedBar.hidden,
+      "baseline: a dirty, unnamed user document shows the never-saved bar");
+
+    check(M.startTour(), "the tour starts with the user's document dirty and unnamed");
+    M.updateDocLabel();
+    check(M.neverSavedBar.hidden,
+      "mid-tour, before the demo has any dirt of its own, the bar is hidden — the LIVE "
+      + "docName/dirtyDoc read here are the demo's, not the user's");
+
+    M.tourGoto(8);   // the Layout step's own run commit
+    M.updateDocLabel();
+    eq(M.dirtyDoc, true, "the demo's own run commit dirties the demo");
+    eq(M.docName, "", "…and the demo has no filename either — the never-saved SHAPE, exactly");
+    check(M.neverSavedBar.hidden,
+      "…yet the bar stays hidden — !tourSaved is what keeps the demo's own dirt from reading "
+      + "as the user's unsaved work");
+
+    M.endTour();
+    M.updateDocLabel();
+    check(!M.neverSavedBar.hidden,
+      "ending the tour restores the user's dirty, unnamed document, and the bar reappears "
+      + "the moment tourSaved clears");
   });
 
 }

@@ -1588,7 +1588,7 @@
 
 <header class="titlebar">
   <div class="tb-top">
-    <div class="qat">
+    <div class="qat" id="qat">
       <button class="qbtn" data-cmd="save" title="Save a copy of the roster file"><svg class="ic"><use href="#i-save"/></svg></button>
       <button class="qbtn" id="undoBtn" data-cmd="undo" title="Undo (Ctrl+Z)" disabled><svg class="ic"><use href="#i-undo"/></svg></button>
       <button class="qbtn" id="redoBtn" data-cmd="redo" title="Redo (Ctrl+Shift+Z)" disabled><svg class="ic"><use href="#i-redo"/></svg></button>
@@ -1640,7 +1640,7 @@
     <div class="rb-pane on" data-pane="file" id="pane-file" role="tabpanel" aria-labelledby="tab-file" tabindex="0">
       <div class="rb-group">
         <div class="rb-file">
-          <div class="split rb-lead">
+          <div class="split rb-lead" id="saveSplit">
             <button class="big" data-cmd="save" title="Save a copy of the roster file">
               <svg class="ic"><use href="#i-save"/></svg><span>Save copy</span>
             </button>
@@ -1754,7 +1754,7 @@
       <div class="rb-group">
         <div class="rb-file info-actions">
           <button class="rb-mini" id="tourBtn" data-cmd="tour"
-                  title="A short guided tour on a sample roster — your document is set aside and comes back untouched">
+                  title="A short guided tour on a sample roster. Your document is set aside and comes back untouched.">
             <svg class="ic"><use href="#i-animated-images"/></svg>Tour
           </button>
           <button class="rb-mini" data-cmd="infoTips" title="Shortcuts, tips and browser notes">
@@ -2905,12 +2905,13 @@ function defaults(){
    ever touch what the user has open. Built FROM the big4-green template —
    one writer for the grade ladder, the same TEMPLATES entry Structure's own
    menu applies — and then edited the way a user could edit it on screen:
-   drop two grades, rename a code, and fold two pairs of bands together.
-   Every person's photo is null, pw/ph are 0 and frame is null: the tour
-   opens with the app already running, and starting an asynchronous decode
-   for a document nobody asked to open is exactly the kind of write the tour
-   swap exists to keep off the user's document — and here there is no user
-   document in play at all yet, so there is nothing to decode for. */
+   drop two grades, rename a code, centre the one band the template ships
+   off-centre, and fold two pairs of bands together. Every person's photo is
+   null, pw/ph are 0 and frame is null: the tour opens with the app already
+   running, and starting an asynchronous decode for a document nobody asked
+   to open is exactly the kind of write the tour swap exists to keep off the
+   user's document — and here there is no user document in play at all yet,
+   so there is nothing to decode for. */
 function demoDoc(){
   const tpl = TEMPLATES.find(t => t.id === "big4-green");
   /* Drop Analyst and Junior Staff BEFORE renaming Assistant's code to "A" —
@@ -2918,7 +2919,13 @@ function demoDoc(){
      moment, and a find-by-code edit right after would land on whichever one
      happens to be first. */
   const tiers = tpl.grades().filter(t => t.code !== "A" && t.code !== "JS");
-  tiers.find(t => t.code === "AS").code = "A";
+  const assistant = tiers.find(t => t.code === "AS");
+  assistant.code = "A";
+  /* The template ships Assistant right-aligned; attached to Partner above it,
+     that reads lopsided on screen. Every other tier here is un-stated and so
+     already centred by newTier's own default — this is the owner's own
+     correction, made once, and it leaves every demo tier centre-aligned. */
+  assistant.align = "center";
   tiers.find(t => t.code === "M").merge = true;
   tiers.find(t => t.code === "C").merge = true;
   normalizeGradeLinks(tiers);
@@ -4036,7 +4043,13 @@ function updateDocLabel(){
 function syncNeverSavedBar(){
   const bar = $("#neverSaved");
   if(!bar) return;
-  const show = !docName && dirtyDoc;
+  /* The Layout step dirties the demo with a real commit, and the demo has no
+     filename either — the same shape as the user's own never-saved roster,
+     but it is not the user's, and there is nothing to warn about saving a
+     document nobody can reach right now. The status bar already carries the
+     tour's own marker; the user's own document gets this bar back the
+     moment the tour ends and the live flags are theirs again. */
+  const show = !docName && dirtyDoc && !tourSaved;
   bar.hidden = !show;
   if(show)
     bar.textContent = 'This roster has never been saved — use "Save copy" to download it.';
@@ -4078,32 +4091,93 @@ function resetPerRoster(){
    two can never come to disagree about whether the tour is running. */
 let tourSaved = null;
 let tourStep = 0;
+/* The live step count — tourLiveSteps()'s own length, set only inside
+   tourGoto. The Next listener reads this, never TOUR.length, to decide
+   whether this is the last step: with a step skipped out, TOUR.length is
+   one too many and Next would try to walk past the true end. */
+let tourCount = 0;
+/* The row currently on screen, set by showTourStep and cleared by endTour.
+   placeTour() re-measures THIS anchor on scroll/resize; it never calls
+   tourGoto or showTourStep, because a scroll event must move the chrome,
+   never rebuild it — the same rule placeGradePanel already follows. */
+let tourCurrent = null;
 
 /* One table, one writer: step order, the step count ("Step N of M") and
    which ribbon tab a step opens on are all read out of this array, never
    restated beside it. Anchors are FULL selector literals — `#id` or
    `[data-cmd="…"]` only — because the static check that proves every one of
    them resolves to something on screen cannot see through a variable.
-   `run` is an optional per-step side effect executed during replay; no row
-   states one yet — step (c) adds the first, the one demonstrated
-   mutation — but the replay loop below is written now because that is what
-   makes Back trivial once a step has something to replay. */
+   `run` is an optional per-step side effect executed during replay; it has
+   THREE customers now — Layout, Page and Name labels, in that row order —
+   replayed in the order they sit in this table; every OTHER row only points
+   at something, and the replay loop exists at all because that is what
+   makes Back trivial once a step has something to replay.
+
+   No em-dash anywhere in a title or a body: the owner's wording rule for
+   tour-facing copy, and it covers this table's thirteen rows whole. */
 const TOUR = [
   {tab:"file", anchor:'[data-cmd="addPeople"]', title:"Add your team",
-   body:"One person at a time with photo, grade and group — the caret holds the paste-list and CSV routes."},
+   body:"One person at a time, a pasted list, or a batch of photos dropped straight onto the canvas. The caret holds the list and CSV routes."},
   {tab:"file", anchor:"#exportMenuBtn", title:"Take it with you",
-   body:"PNG, PDF, SVG or CSV — every format is drawn from the same layout you see here."},
-  {tab:"file", anchor:'[data-cmd="infoPrivacy"]', title:"Private by design",
-   body:"Everything runs on your device — editing and exporting touch the network zero times."}
+   body:"PNG, PDF and SVG are drawn from the exact layout you see here; CSV exports the roster as a list."},
+  {tab:"file", anchor:"#saveSplit", title:"Your chart is a file",
+   body:"A roster is one file on your device. Save copy downloads it; Open brings it back. Nothing is stored anywhere else."},
+  {tab:"file", anchor:"#qat", title:"Always at hand",
+   body:"Save, undo and redo sit above the tabs, so they never move while you work."},
+  {tab:"grades", anchor:"#tiers", title:"The grade ladder",
+   body:"Each chip is a band on the chart. Drag to reorder; the caret opens fill, alignment, attach and share."},
+  {tab:"grades", anchor:'[data-cmd="groups"]', title:"The second dimension",
+   body:"Groups cut across grades in each person's subline. Everywhere they matter wears the 2D badge, and the Matrix layout turns them into rows."},
+  {tab:"grades", anchor:"#roster", title:"The roster",
+   body:"Everyone on the chart, in drawing order. Edit details, photos and order here, or search to find someone fast."},
+  {tab:"design", anchor:"#sheet", title:"A print preview",
+   body:"The canvas shows the finished page, fitted to your window. It is a preview, not a form: nothing on it can be clicked or dragged. All editing happens in the roster and the ribbon."},
+  {tab:"design", anchor:"#layoutBtn", title:"One roster, six layouts",
+   body:"We just switched the sample to Swimlanes: same people, same order, reflowed. Switching back loses nothing.",
+   run:()=>{ commit("switched the sample to Swimlanes", ()=>{ state.layout = "swimlanes"; }, {render:"all"}); }},
+  {tab:"design", anchor:"#pageBtn", title:"Pick the paper",
+   body:"We just turned the page to portrait: the chart refits itself to whatever paper you pick, and exports print at full quality.",
+   run:()=>{ commit("turned the sample to portrait", ()=>{ state.page = "portrait"; }, {render:"all"}); }},
+  {tab:"design", anchor:"#nameLabelsBtn", title:"Name labels",
+   body:"The sample's names just moved below the photos. On a crowded chart, changing the position is an easy way to make room.",
+   run:()=>{ commit("moved the sample's name labels below the photos", ()=>{ state.nameLabelPosition = "below"; }, {render:"all"}); }},
+  {tab:"design", anchor:"#accentBtn", title:"Your colours",
+   body:"The accent fills the bands. Any colour is allowed; if text gets hard to read, the app warns you but never refuses."},
+  {tab:"file", anchor:'[data-cmd="tour"]', title:"That's the tour",
+   body:"Your own roster is back the moment this card closes. Take the tour again from here any time."}
 ];
+
+/* A hidden anchor drops its step out, and the numbering below is computed
+   from what remains — the roster panel under body.roster-hidden is the live
+   case today, at a narrow window with the panel put away. Measuring an
+   anchor's rect requires the row's own pane to be the CURRENT one, which is
+   why every row's tab is selected here before its own measure; showTourStep
+   selects the target step's tab again afterwards, so the user only ever
+   sees the one step it lands on. Chrome only — no state write reaches here,
+   same as showTourStep below. */
+function tourLiveSteps(){
+  return TOUR.filter(row => {
+    selectTab(row.tab, false);
+    const el = document.querySelector(row.anchor);
+    if(!el) return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 0 || r.height > 0;
+  });
+}
 
 /* The ONE navigation path — Next, Back and startTour all reach a step
    through this, never through the swap-in lines directly. Every step change
    rebuilds the demo document from scratch and replays the side effects of
-   steps 0..i: no step has ever been undone on the demo's own history, so
-   there is nothing to unwind and nothing that can drift from a replay done
-   the same way every time. That is what makes Back trivial — "Back discards
-   the demo document and replays" — the moment a step's `run` exists. */
+   the LIVE steps 0..i: no step has ever been undone on the demo's own
+   history, so there is nothing to unwind and nothing that can drift from a
+   replay done the same way every time. That is what makes Back trivial —
+   "Back discards the demo document and replays" — the moment a step has
+   something to replay.
+
+   The replay walks the LIVE list, deliberately, not TOUR itself: a skipped
+   step's `run` must never fire. An unexplained mutation on a step the user
+   never saw is worse than the mutation simply not happening — the sample
+   would flip to Swimlanes off-screen with nothing on the card to say why. */
 function tourGoto(i){
   state = demoDoc();
   history = [];
@@ -4111,10 +4185,14 @@ function tourGoto(i){
   historyPending = false;
   docName = "";
   dirtyDoc = false;
-  for(let k = 0; k <= i; k++) if(TOUR[k].run) TOUR[k].run();
+  const steps = tourLiveSteps();
+  if(!steps.length){ endTour(); return; }
+  i = Math.max(0, Math.min(i, steps.length - 1));
+  for(let k = 0; k <= i; k++) if(steps[k].run) steps[k].run();
   tourStep = i;
+  tourCount = steps.length;
   renderAll();
-  showTourStep(i);
+  showTourStep(steps[i], i, steps.length);
 }
 
 /* Refuses while any of the seven modals is open (the one class they all
@@ -4157,20 +4235,53 @@ function endTour(){
   docName        = tourSaved.docName;
   dirtyDoc       = tourSaved.dirtyDoc;
   tourSaved = null;
+  tourCurrent = null;
   document.body.classList.remove("tour-on");
   renderAll();
 }
 
 /* Chrome only — no state write reaches here, which is what keeps this
    function out of test/document.js's reach and inside test/dom.js's instead.
-   Reads a real rect off the step's own anchor and places the ring around it
-   and the card below it, preferring the space under the ring the way every
-   anchor here has room for today; a short window flips the card above
-   instead. The card is measured AFTER its text is filled, because its
-   height depends on what just went into it. */
-function showTourStep(i){
-  const step = TOUR[i];
+   Selects the step's own tab, fills the card's text and buttons against the
+   LIVE position/count tourGoto computed, and focuses Next — then hands the
+   geometry to placeTour(), which is the one place that measures and places
+   the ring and the card. Splitting it this way is what lets a scroll or
+   resize event re-run only the geometry half, below. */
+function showTourStep(step, pos, count){
   selectTab(step.tab, false);
+  tourCurrent = step;
+
+  $("#tourTitle").textContent = step.title;
+  $("#tourBody").textContent  = step.body;
+  $("#tourCount").textContent = "Step " + (pos + 1) + " of " + count;
+  $("#tourBack").disabled = pos === 0;
+  $("#tourNext").textContent = pos + 1 < count ? "Next" : "Done";
+
+  placeTour();
+  $("#tourNext").focus({preventScroll:true});
+}
+
+/* The geometry half of showTourStep, on its own so scroll and resize can
+   re-run it without rebuilding the card's text or moving focus — the same
+   move-don't-rebuild rule placeGradePanel already follows for the grade
+   panel. Re-queries the CURRENT step's own anchor rather than trusting a
+   rect taken earlier, because the very thing that calls this is the anchor
+   having possibly moved. Does nothing while no tour is showing, so a stray
+   resize before startTour or after endTour is silently a no-op rather than
+   a null-anchor throw.
+
+   Places the ring around the anchor and the card below it, preferring the
+   space under the ring the way every anchor here has room for today; a
+   short window flips the card above instead. Either way the card's top is
+   then clamped into [margin, innerHeight - cardHeight - margin]: the
+   #sheet step's ring can be nearly viewport-high, where neither "below" nor
+   "above" fits on its own, and the clamp is what keeps the card on screen
+   at all instead of running off the bottom — it ends up overlapping the
+   ring's lower edge, which is accepted here the way the pyramid's own
+   attach phase-shift accepts an overlap it cannot re-solve away. */
+function placeTour(){
+  if(!tourSaved || !tourCurrent) return;
+  const step = tourCurrent;
 
   const anchor = document.querySelector(step.anchor);
   const r = anchor.getBoundingClientRect();
@@ -4181,24 +4292,17 @@ function showTourStep(i){
   ring.style.width  = (r.width + pad * 2) + "px";
   ring.style.height = (r.height + pad * 2) + "px";
 
-  $("#tourTitle").textContent = step.title;
-  $("#tourBody").textContent  = step.body;
-  $("#tourCount").textContent = "Step " + (i + 1) + " of " + TOUR.length;
-  $("#tourBack").disabled = i === 0;
-  $("#tourNext").textContent = i + 1 < TOUR.length ? "Next" : "Done";
-
   const margin = 8;
   const card = $("#tourCard");
   const cr = card.getBoundingClientRect();
   const below = r.bottom + 12;
-  const top = below + cr.height <= window.innerHeight - margin
+  let top = below + cr.height <= window.innerHeight - margin
     ? below
     : r.top - cr.height - 12;
+  top = Math.min(Math.max(top, margin), window.innerHeight - cr.height - margin);
   const left = Math.min(Math.max(r.left, margin), window.innerWidth - cr.width - margin);
   card.style.top  = top + "px";
   card.style.left = left + "px";
-
-  $("#tourNext").focus({preventScroll:true});
 }
 /* Everything that can lose unsaved work asks first, and the buttons say what
    they do — "Discard and open" rather than "OK". These are async because the
@@ -6632,7 +6736,7 @@ function startView(){
     el("div", {cls:"start-cards"}, cards),
     el("div", {cls:"start-foot"}, [
       el("button", {cls:"start-foot-btn",
-        title:"A short guided tour on a sample roster — your document is set aside and comes back untouched",
+        title:"A short guided tour on a sample roster. Your document is set aside and comes back untouched.",
         attrs:{"data-cmd":"tour"}}, [icon("#i-animated-images"), "Tour"]),
       el("span", {text:"Everything processed offline on your device · nothing uploaded"}),
       el("button", {cls:"start-foot-btn",
@@ -9688,10 +9792,10 @@ function focusPersonMenuItem(verb, id){
    scroller, and a menu that vanished every time the list moved under it would
    be unusable with a long roster. */
 addEventListener("resize", ()=>{
-  syncRibbonOverflow(); closeMenu(); placeGradePanel(); placePersonMenu();
+  syncRibbonOverflow(); closeMenu(); placeGradePanel(); placePersonMenu(); placeTour();
 });
 document.addEventListener("scroll", ()=>{
-  closeMenu(); placeGradePanel(); placePersonMenu();
+  closeMenu(); placeGradePanel(); placePersonMenu(); placeTour();
 }, true);
 document.querySelectorAll(".rb-tab").forEach(b=>{
   b.addEventListener("click", ()=>selectTab(b.dataset.tab));
@@ -10551,7 +10655,7 @@ $("#infoCloseBtn").addEventListener("click", closeInfoModal);
    button follows. */
 $("#tourBack").addEventListener("click", ()=>{ if(tourStep > 0) tourGoto(tourStep - 1); });
 $("#tourNext").addEventListener("click", ()=>{
-  if(tourStep + 1 < TOUR.length) tourGoto(tourStep + 1); else endTour();
+  if(tourStep + 1 < tourCount) tourGoto(tourStep + 1); else endTour();
 });
 $("#tourX").addEventListener("click", ()=>{ endTour(); });
 $("#importConfirmBtn").addEventListener("click", ()=>importClose({

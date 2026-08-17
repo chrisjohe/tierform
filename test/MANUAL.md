@@ -803,6 +803,56 @@ Check at roughly 1440, 1100, 820 and 380 px wide:
 - [ ] Buttons and inputs are comfortably tappable (~44px) on a phone-width view.
 - [ ] Dialogs fit the screen and can still be dismissed.
 
+## Guided tour
+
+`test/document.js` §16 owns the swap and the state machine — the demo document,
+`tourGoto`'s replay, the skip rule's live count, the three `run`s' own effects
+(each writing only its own field, Back reverting exactly that field), and the
+never-saved bar staying quiet about the demo's own dirt. `test/dom.js` §8 owns
+the static shape — the thirteen rows, their anchors, the CSS tokens, no
+em-dash anywhere in the copy. Neither reaches paint: whether the ring is
+actually where the maths says, whether a scroll event visibly keeps up,
+whether the dark scheme actually looks darker. That is this checklist.
+
+- [ ] Start ▸ Info ▸ Tour, and the start view's own Tour button, both open the
+      tour on the sample roster ("Pearson Specter Litt"). The ring visibly
+      surrounds each of the thirteen anchors in turn, in order: Add people,
+      Export, Save copy, the quick-access bar, the grade strip, Group, the
+      roster, the canvas, Layout, Page, Name labels, Accent, and Tour itself.
+- [ ] Step 8, "A print preview", rings the whole canvas — nearly
+      viewport-high on a typical window. The card sits over the ring's lower
+      edge rather than running off the bottom of the window or floating
+      disconnected below it.
+- [ ] Three steps in a row each visibly change the sample the instant they
+      open, and each is reverted by Back to exactly the look before it —
+      rebuilt from scratch, not undone:
+      - Step 9, "One roster, six layouts" — Pyramid becomes Swimlanes.
+      - Step 10, "Pick the paper" — the page turns from landscape to portrait.
+      - Step 11, "Name labels" — names move from beside the photos to below
+        them.
+      Back from 11→10→9→8 gives back name position, then page, then layout,
+      one at a time; Next forward again re-shows all three changes in order.
+- [ ] Through steps 9–12 (Layout, Page, Name labels, Accent) the Angle
+      command sits visibly disabled in the Design pane, with its own "Not
+      available in Swimlanes" reason on hover, even though no tour step
+      points the ring at it.
+- [ ] Resize the window and scroll the page while a step is showing: the
+      ring and the card stay glued to their anchor rather than lagging a
+      frame behind or detaching from it.
+- [ ] Narrow the window below 900px with the roster panel put away (the rail
+      showing, not the panel) and start the tour: the roster step is absent
+      and "Step N of M" counts one fewer throughout, on every step.
+- [ ] Compare the ring's dim in light and dark OS appearance: the dark
+      scheme's own value is visibly deeper, not the light value sitting on
+      top of chrome that merely darkened around it.
+- [ ] On every step, focus lands on Next the moment the card appears, and
+      Tab/Shift+Tab cycle only through the card's own three controls (Back,
+      Next, X) without ever reaching the ribbon or the canvas behind it.
+- [ ] Escape and the X both end the tour from any step. The user's own
+      document reappears exactly as it was — including one that had
+      unsaved changes and no filename, which regains its own never-saved
+      bar the instant the tour ends.
+
 ## Browsers and targets
 
 `test/dom.js` §4f proves the no-network claim statically — no `fetch`, no
