@@ -4386,6 +4386,42 @@ try{
       + "byte for byte — a drifted island value is the start view quietly "
       + "theming — got " + JSON.stringify(islandNames.filter(n => ISLAND_TOKENS[n] !== LIGHT_RAW[n])
           .map(n => n + ": island=" + ISLAND_TOKENS[n] + " light=" + LIGHT_RAW[n])));
+
+    /* Owner's dark-mode browser check: the above two assertions prove every
+       PINNED value is right, never that the pin LIST is complete — a token
+       the subtree reads but nobody pinned sails straight through both of
+       them. That is exactly what happened: --hover-faint was read by the
+       Open… tile's own .start-card-open rule and pinned by nobody, so on
+       the never-theming sheet the tile went near-black in the dark scheme.
+       This is the completeness class check that failure is now the reason
+       for: walk every already-parsed CSS rule whose selector targets the
+       island's subtree (.sheet-empty or .start-, the same two prefixes the
+       island's own comment names), collect every var(--x) its declarations
+       read, and — for the ones the dark block actually redefines, since an
+       identical value needs no pin — demand the name appear in the island
+       list. A token the dark block never touches (--brand-rgb, read by
+       .start-card:hover through --hot) draws the same colour either way
+       and must NOT be demanded, or the check would fail on the very rule
+       that proves the island unnecessary there. */
+    const islandVarNames = new Set();
+    allRules.forEach(([sel, body]) => {
+      if(sel.indexOf(".sheet-empty") < 0 && sel.indexOf(".start-") < 0) return;
+      const reVar = /var\(\s*(--[A-Za-z0-9-]+)/g;
+      let vm;
+      while((vm = reVar.exec(body))) islandVarNames.add(vm[1]);
+    });
+    check(islandVarNames.size > 0,
+      "at least one var(--x) is read by a .sheet-empty/.start- rule — a scan "
+      + "that finds nothing must fail, not pass vacuously — got 0");
+    const mustPin = Array.from(islandVarNames).filter(n => n in DARK_OVERRIDES);
+    check(mustPin.length > 0,
+      "at least one of those tokens is also redefined in the dark block, so "
+      + "the completeness check has something to demand — got 0");
+    check(mustPin.every(n => islandNames.indexOf(n) >= 0),
+      "every island-subtree token that the dark block redefines is also in "
+      + "the island's own pin list — a reader with no pin is the "
+      + "--hover-faint bug again — missing: "
+      + JSON.stringify(mustPin.filter(n => islandNames.indexOf(n) < 0)));
   }
 
 }catch(e){

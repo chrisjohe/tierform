@@ -1225,15 +1225,20 @@
   }
   /* The start view sits ON the sheet, and the sheet never themes — this
      re-declares every custom property the .sheet-empty subtree actually
-     reads (the two template-card states, the Privacy button, both text
-     tones) at its light :root value, byte for byte, so the whole island
-     renders identically in both colour schemes. Not a color:var(--ink) here:
-     every piece of text in this subtree already sets its own colour (or, for
-     the two buttons, inherits it from a rule matching that button directly),
-     so nothing here relies on inherited body ink — only the custom
-     properties those rules read need pinning. test/fixtures.js §8 holds
-     this list against the light :root byte for byte, so it cannot drift
-     out from under it unnoticed. */
+     reads (the two template-card states, the Open tile's own resting fill,
+     the Privacy button, both text tones) at its light :root value, byte for
+     byte, so the whole island renders identically in both colour schemes.
+     Not a color:var(--ink) here: every piece of text in this subtree
+     already sets its own colour (or, for the two buttons, inherits it from
+     a rule matching that button directly), so nothing here relies on
+     inherited body ink — only the custom properties those rules read need
+     pinning. test/fixtures.js §8 holds this list against the light :root
+     byte for byte, so it cannot drift out from under it unnoticed, and a
+     second §8 check holds the list COMPLETE against every var(--x) the
+     subtree's rules actually read — --hover-faint was once read by the
+     Open tile and pinned by nobody, so in dark the tile went near-black on
+     the never-theming sheet; that bug is why the completeness check
+     exists. */
   .sheet-empty{
     --ink:#12161c;
     --ink-2:#2a323d;
@@ -1241,6 +1246,7 @@
     --line:#dfe3e8;
     --surface:#ffffff;
     --hover:#f7f8f9;
+    --hover-faint:#fafbfb;
     --hover-line:#cfd5dc;
     --brand-ink:#003153;
     --hot:rgba(var(--brand-rgb),.05);
@@ -1263,6 +1269,11 @@
     transition:border-color .12s,background .12s;
   }
   .start-card:hover{border-color:var(--brand-ink);background:var(--hot)}
+  /* A whisper of grey sets the continue-from-file tile apart from the three
+     templates; the token already carries its own dark-mode value, and
+     .start-card:hover's higher specificity (0,2,0 beats 0,1,0) keeps the
+     hover wash unchanged. */
+  .start-card-open{background:var(--hover-faint)}
   .start-card:focus-visible{outline:2px solid var(--brand-ink);outline-offset:2px}
   /* One anatomy for all four tiles — icon/swatch, title, descriptor — so the
      Open… tile's #i-open sits in the same slot a template card's swatch
@@ -1276,6 +1287,11 @@
   .start-card-name{font-size:13px;font-weight:600;color:var(--ink);max-width:100%;overflow-wrap:break-word}
   .start-card-desc{font-size:11.5px;color:var(--mute)}
   .start-foot{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:26px;font-size:11.5px;color:var(--mute)}
+  /* gap (8px) + this margin (18px) = 26px, the same distance .start-foot's
+     own margin-top puts between the cards and the Tour button, so the
+     button sits at least as far from the note below it as from the cards
+     above it. */
+  .start-foot-tour{margin-bottom:18px}
   .sheet.clear{background-image:
      linear-gradient(45deg,#e9ecef 25%,transparent 25%,transparent 75%,#e9ecef 75%),
      linear-gradient(45deg,#e9ecef 25%,transparent 25%,transparent 75%,#e9ecef 75%);
@@ -6724,7 +6740,7 @@ function startView(){
         text: cap.label + " · " + tpl.grades().length + " grades"})
     ]);
   });
-  cards.push(el("button", {cls:"start-card", attrs:{"data-cmd":"open"}}, [
+  cards.push(el("button", {cls:"start-card start-card-open", attrs:{"data-cmd":"open"}}, [
     icon("#i-open"),
     el("span", {cls:"start-card-name", text:"Open…"}),
     el("span", {cls:"start-card-desc", text:"Continue from a roster file"})
@@ -6735,7 +6751,7 @@ function startView(){
       text:"Open a roster file, or begin with a template."}),
     el("div", {cls:"start-cards"}, cards),
     el("div", {cls:"start-foot"}, [
-      el("button", {cls:"start-foot-btn",
+      el("button", {cls:"start-foot-btn start-foot-tour primary",
         title:"A short guided tour on a sample roster. Your document is set aside and comes back untouched.",
         attrs:{"data-cmd":"tour"}}, [icon("#i-animated-images"), "Tour"]),
       el("span", {text:"Everything processed offline on your device · nothing uploaded"}),

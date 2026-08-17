@@ -2660,6 +2660,14 @@ check(!/state\s*=\s*migrate\(/.test(SCRIPT),
 
     /* ---- the footer: the offline-processing claim and a second Privacy
        control, in the same command and wording as the ribbon's own. */
+    /* The Tour button is filled blue like Add people. primary is the app's
+       ONE writer of that colour (button.primary, CLAUDE.md) — pinning the
+       class pins Tour to that single writer, the same one every dialog's
+       confirming action uses, rather than a colour restated here. */
+    check(/cls:"start-foot-btn start-foot-tour primary",\n\s*title:"[^"]*",\n\s*attrs:\{"data-cmd":"tour"\}/.test(sv[0]),
+      "the start view's Tour entry emits start-foot-btn start-foot-tour "
+      + "primary — primary because blue has one writer in the whole app "
+      + "and this is what pins the button to it");
     check(/Everything processed offline on your device · nothing uploaded/.test(sv[0]),
       "the start view footer states the offline-processing claim");
     /* a class check over the command, not a case check: every dispatcher of
@@ -2702,6 +2710,12 @@ check(!/state\s*=\s*migrate\(/.test(SCRIPT),
      needs no wiring of its own beyond the attribute */
   check(sv && /"data-cmd":"open"/.test(sv[0]),
     'the Open… tile carries data-cmd="open"');
+  /* The Open… tile is very subtly grey, apart from the three template
+     tiles, via its own start-card-open class alongside the shared
+     start-card — the CSS rule for that class is checked below, against
+     the --hover-faint token rather than a literal colour. */
+  check(sv && /cls:"start-card start-card-open"/.test(sv[0]),
+    "the Open… tile carries start-card-open alongside start-card");
   check(sv && /"Open…"/.test(sv[0]) && /"Continue from a roster file"/.test(sv[0]),
     "…labelled Open… with its own secondary line");
   /* All four tiles share one anatomy — icon or swatch, title, descriptor —
@@ -3982,6 +3996,35 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
   check(/\.rb-file > \.rb-mini, \.start-foot-btn\{justify-content:flex-start;padding:4px 9px;font-size:12px\}/.test(CSS),
     "column 2 uses the shared compact-button metrics, and the start view's "
     + "own Privacy button rides the same grouped rule");
+
+  /* The Tour button sits at least as far below the cards as it does above
+     the offline note — the owner's own rule, checked as second-writer
+     arithmetic rather than a restated 26: the foot's gap plus the tour
+     button's own margin-bottom must reach the foot's margin-top. Retuning
+     any one of the three numbers keeps this relation honest instead of
+     silently going stale. */
+  const footRule = /\.start-foot\{[^}]*\}/.exec(CSS);
+  const footGap = footRule && /gap:(\d+)px/.exec(footRule[0]);
+  const footTop = footRule && /margin-top:(\d+)px/.exec(footRule[0]);
+  check(!!footGap && !!footTop, "the start-foot rule states a gap and a margin-top in px");
+  const tourRule = /\.start-foot-tour\{[^}]*\}/.exec(CSS);
+  const tourBottom = tourRule && /margin-bottom:(\d+)px/.exec(tourRule[0]);
+  check(!!tourBottom, "a .start-foot-tour rule states a margin-bottom in px");
+  if(footGap && footTop && tourBottom){
+    const gap = Number(footGap[1]), top = Number(footTop[1]), bottom = Number(tourBottom[1]);
+    check(gap + bottom >= top,
+      "the Tour button sits at least as far from the note below it (gap "
+      + gap + "px + start-foot-tour's margin-bottom " + bottom + "px = "
+      + (gap + bottom) + "px) as from the cards above it (start-foot's "
+      + "margin-top " + top + "px)");
+  }
+
+  /* The Open… tile is very subtly grey via its own token-based rule — a
+     literal colour here would be a second writer of a shade --hover-faint
+     already owns (the same row-hover surface .p-row and .grp-row use), and
+     would drift the day the token's value changes for either theme. */
+  check(/\.start-card-open\{background:var\(--hover-faint\)\}/.test(CSS),
+    "the Open… tile's own rule paints background:var(--hover-faint), not a literal colour");
 
   /* The ribbon body is one fixed height for every tab, so the chart cannot jump
      when tabs change. 88px fits the standard controls and group label; touch
