@@ -6459,8 +6459,8 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
       "and nothing sits between its tags in the markup — a version literal there would be a second copy VERSION could drift from");
     check(versionWrites === 1,
       "exactly one line writes VERSION into .about-version — found " + versionWrites);
-    check(/const VERSION = "2026\.8";/.test(SCRIPT),
-      "VERSION itself holds the current release, 2026.8");
+    check(/const VERSION = "2026\.8b";/.test(SCRIPT),
+      "VERSION itself holds the current release, 2026.8b");
     check(!/id="appVersion"/.test(about),
       "About needs no id=\"appVersion\" hook in the markup — the class already there is the hook");
     check(!/appVersion/.test(SCRIPT),

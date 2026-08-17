@@ -33,7 +33,7 @@ three rows are the ones to update.
 | History memory, 30 people / 25 photos / 10 steps | 1.05 MB |
 | **Current build** — `tierform_app.html`, recorded 2026-08-13 | 956 719 bytes, 10 308 lines |
 | Suites | harness 15 389 · dom 3 076 · document 1 298 · fixtures 801 · import 777 = **21 341** |
-| App version | `const VERSION` and the About release label, both `2026.8` |
+| App version | `const VERSION` and the About release label, both `2026.8b` |
 
 `tierform_app.html` is the deliverable. Timestamped working copies are banned
 from the project — version control is the checkpoint — and `test/dom.js` fails
