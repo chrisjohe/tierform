@@ -1477,6 +1477,7 @@ async function runSuite(){
        written into the roster file, and "" would render an untitled chart
        that reads as a layout bug. */
     eq(M.defaults().title, "Team name", "a new document's title is the neutral placeholder");
+    eq(M.defaults().groupsLabel, "", "a new document's group-axis label is empty — nothing is drawn until one is set");
     eq(M.defaults().showGradeCode, true, "new charts show grade codes");
     eq(M.defaults().showGradeName, false, "new charts do not show grade names");
     eq(M.defaults().nameLabelPosition, "below", "new Swimlanes put name labels below photos");
@@ -1524,6 +1525,9 @@ async function runSuite(){
       bad.showPersonGrade = true; bad.showPersonGroup = null;
       check(/person-label/.test(M.stateLimitProblem(bad) || ""),
         "Save refuses a non-boolean person-group display setting");
+      bad.showPersonGroup = true; bad.groupsLabel = "x".repeat(500);
+      check(/document label/.test(M.stateLimitProblem(bad) || ""),
+        "Save refuses a group-axis label longer than the document-label limit");
     }
 
     eq(M.dirtyDoc, false, "a fresh document starts clean");
@@ -4591,6 +4595,26 @@ async function runSuite(){
     eq(M.history.length, 3, "editing the same field after a pause is a new step");
     M.undo();
     eq(M.state.people[0].groupId, "HAM", "the second group edit undoes on its own");
+  }
+
+  {
+    /* --- edit: the group-axis label follows the same one-continuous-change
+       shape as a person's name above — "groupsLabel" is the exact session
+       key #groupsLabel's own input listener uses (edit("groupsLabel", …)),
+       so a session keyed on it here replays what the real control does. */
+    const M = makeModule();
+    M.state = M.defaults();
+    M.state.tiers = sixGrades();
+
+    const before = M.history.length;
+    for(const ch of ["O","Of","Off","Office"]){
+      M.edit("groupsLabel", "changed the group-axis label", () => { M.state.groupsLabel = ch; });
+    }
+    eq(M.state.groupsLabel, "Office", "every keystroke in the session is applied");
+    eq(M.history.length - before, 1, "four keystrokes make one history entry, not four");
+
+    M.undo();
+    eq(M.state.groupsLabel, "", "undo restores the value from before the session, not one character");
   }
 
   {

@@ -7725,10 +7725,11 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
     "…and its tooltip names Matrix's rows too, the one other place the second dimension is drawn — got "
     + JSON.stringify(groupBtnTag && groupBtnTag[0]));
 
-  /* --- the "2D" badge: ONE literal, worn on two faces — the Group button
-     and the Matrix menu row are the two places a chart's second dimension
-     shows up in the ribbon, and neither "2D" may be able to drift from the
-     other. Comparing both sites against a shared literal (rather than
+  /* --- the "2D" badge: ONE literal, worn on three faces — the Group
+     button, the Matrix menu row and the modal's own Axis label field are
+     the three places a chart's second dimension shows up in the ribbon and
+     its dialog, and none of the three "2D"s may be able to drift from the
+     others. Comparing every site against a shared literal (rather than
      restating the regex per site) is what makes that true. */
   const BADGE_2D = '<span class="badge-2d" aria-hidden="true">2D</span>';
   check((MARKUP.match(/\.badge-2d\{/g) || []).length === 1,
@@ -7743,6 +7744,23 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
   /* --- the modal: ids exist and are referenced --- */
   check(/<div class="modal-backdrop" id="groupModal" hidden>/.test(MARKUP),
     "#groupModal is in the markup, starting hidden like every other dialog");
+
+  /* --- the axis-label field: always visible (also in the empty state),
+     names the group axis drawn only by Matrix, and carries the shared 2D
+     badge as its third site (see BADGE_2D above). field-big is a scoped
+     modifier — this caption doubles as the modal's own section heading, so
+     it reads larger than the shared label.field caption size every other
+     dialog field uses; folding it into this one literal is what keeps the
+     modifier from silently falling off the markup. */
+  const groupsLabelField = /<label class="field field-big"><span>Axis label <span class="badge-2d" aria-hidden="true">2D<\/span><\/span><input type="text" id="groupsLabel" maxlength="200"[^>]*><\/label>/.exec(MARKUP);
+  check(!!groupsLabelField, "#groupsLabel field is readable, carrying the field-big modifier");
+  check(groupsLabelField && groupsLabelField[0].indexOf(BADGE_2D) > 0,
+    "…and carries the SAME shared 2D badge literal as the Group button and the Matrix menu row — a third site, not a third copy");
+  check(MARKUP.indexOf('<h3 id="groupTitle">Groups</h3>') < MARKUP.indexOf('id="groupsLabel"')
+     && MARKUP.indexOf('id="groupsLabel"') < MARKUP.indexOf('id="groupEmpty"'),
+    "…and it sits inside #groupModal, between the heading and the empty-state sentence — always visible, not hidden behind the empty state");
+  check(/\$\("#groupsLabel"\)\.addEventListener\("input", e=>edit\("groupsLabel",/.test(SCRIPT),
+    "#groupsLabel is bound to an edit() session keyed \"groupsLabel\", the same shape #title uses");
   check(/<div id="groupList"><\/div>/.test(MARKUP),
     "#groupList is an empty container at boot — syncGroupModal fills it, "
     + "and a panel destroyed mid-rebuild must not take a nested control with it");
@@ -7761,6 +7779,8 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
   check(!!sync, "syncGroupModal is readable");
   check(sync && /if\(!Array\.isArray\(state\.groups\)\) return;/.test(sync[0]),
     "…tolerant of a missing state.groups, so a hand-built test state cannot throw it");
+  check(sync && /\$\("#groupsLabel"\)\.value = state\.groupsLabel \|\| ""/.test(sync[0]),
+    "…and fills the axis-label field on open, alongside the list");
   check(sync && /\$\("#groupEmpty"\)\.hidden = groups\.length > 0/.test(sync[0]),
     "…the empty sentence shows only at zero groups");
   check(sync && /fill\(\$\("#groupList"\), groups\.map\(/.test(sync[0]),

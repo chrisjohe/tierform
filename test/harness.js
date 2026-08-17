@@ -2278,7 +2278,10 @@ async function rendererAgreementFor(kind){
    matter what either engine's own formula said. */
 {
   const matrixOf = st => { st.layout = "matrix"; return layout(st); };
-  const GUTTER_SIZE = 14;   // the size a gutter row label is drawn at — unique among matrix's own texts
+  const GUTTER_SIZE = 14;   // the size a gutter row label is drawn at — no longer unique among matrix's
+                            // own texts once groupsLabel is set: the axis label heading the gutter shares
+                            // this size and the "end" anchor, so the blocks below that need to isolate row
+                            // labels specifically from the axis label filter on segs[0].t instead
 
   /* person()'s own office default ("FRA" whenever the field is falsy) means
      an empty string can never reach a null groupId through baseState's own
@@ -2436,6 +2439,118 @@ async function rendererAgreementFor(kind){
     eq(gutterTexts.length, 0, "with zero groups there are zero gutter texts");
   }
 
+  /* ---- the axis label: state.groupsLabel names the gutter column itself,
+     drawn once when the gutter exists, level with the first lane's own
+     heading. Second-sourced two ways: identified by its own drawn TEXT
+     (segs[0].t), never by the size/anchor filter above which the axis
+     label now shares with the row labels; and positioned against the
+     first lane-heading band's OWN pts, never a laneTop/SW.headH formula
+     restated here. */
+  {
+    const g1 = tier("P", "Partner"), g2 = tier("C", "Consultant");
+    const st = baseState([g1, g2], [
+      person(g1.id, {office: "Berlin"}), person(g2.id, {office: "Munich"})
+    ]);
+    st.groupsLabel = "Office";
+    const L = matrixOf(st);
+    const axisTexts = L.texts.filter(t => t.segs && t.segs[0] && t.segs[0].t === "Office");
+    eq(axisTexts.length, 1,
+      "the axis label is drawn exactly once when groupsLabel is set and the gutter exists");
+    const axisText = axisTexts[0];
+    eq(axisText.segs[0].w, 700, "the axis label is drawn bold — 700, not the row labels' 600");
+    eq(axisText.size, GUTTER_SIZE, "the axis label is drawn at the same size as the row labels");
+    eq(axisText.color, st.inkOnWhite, "the axis label takes st.inkOnWhite, the same ink as the row labels");
+    eq(axisText.anchor, "end", "the axis label is right-anchored, the same edge as the row labels");
+
+    const laneBand = L.bands[1];   // bands[0] is the title bar; bands[1] is the first lane's own heading
+    const bandTop = laneBand.pts[0][1], bandBottom = laneBand.pts[2][1];
+    const bandX0  = laneBand.pts[0][0];
+    eq(axisText.y, (bandTop + bandBottom) / 2,
+      "the axis label's y is centred on the first lane-heading band's own top/bottom, read from its pts");
+    check(axisText.x < bandX0,
+      "the axis label sits strictly left of the first lane's own left edge — got x " +
+      axisText.x + " vs band x0 " + bandX0);
+  }
+
+  /* ---- weight drift: the axis label must be MEASURED at the weight it is
+     DRAWN at (700), not the row labels' 600. The stub's measureText is
+     weight-blind (see the PREAMBLE comment above MEAS_LOG) so a width
+     comparison could never catch a measure site stuck on 600 — the
+     evidence instead comes from MEAS_LOG, the literal (font, text) pairs
+     actually pushed through meas.measureText. */
+  {
+    const g1 = tier("P", "Partner");
+    const st = clearGroup(baseState([g1], [
+      person(g1.id, {office: "Named"}),
+      person(g1.id, {office: "Named"})
+    ]), 1);
+    st.groupsLabel = "Office";
+    MODULE.MEAS_LOG.length = 0;
+    matrixOf(st);
+    const axisMeasures = MODULE.MEAS_LOG.filter(m => m.text === "Office");
+    check(axisMeasures.length > 0 && axisMeasures.every(m => /^700 14px /.test(m.font)),
+      "the axis label is measured at 700 14px throughout — the same weight it is drawn at — got " +
+      JSON.stringify(axisMeasures.map(m => m.font)));
+  }
+
+  /* ---- no gutter, no label: with zero groups the gutter column itself is
+     absent, so a stored groupsLabel has nothing to head and draws nothing —
+     the same "absent exactly when the column is" stance the row labels
+     take. Filtered by size+anchor, not by the drawn TEXT: with zero groups
+     there are no row labels either (the one drawn row is the label-free
+     catch-all), so this filter is unambiguous here even though the comment
+     on GUTTER_SIZE above says it stops being unique once groupsLabel is
+     set — and it is what actually catches a spurious size-14/anchor-"end"
+     text that ellipsize has garbled to "…" at a negative width, which a
+     filter on segs[0].t === "Office" would silently miss. */
+  {
+    const g1 = tier("P", "Partner");
+    const st = noGroups(baseState([g1], [person(g1.id)]));
+    st.groupsLabel = "Office";
+    const L = matrixOf(st);
+    const gutterTexts = L.texts.filter(t => t.size === GUTTER_SIZE && t.anchor === "end");
+    eq(gutterTexts.length, 0,
+      "with zero groups (no gutter) nothing gutter-shaped is drawn even though groupsLabel is set");
+  }
+
+  /* ---- gutter widening: the axis label folds into the same widest-of
+     measurement the row labels drive, so a longer stored label can make
+     the gutter — and therefore the first lane's own left edge — wider.
+     Second-sourced by comparing the two full layouts against each other,
+     never by recomputing the gutter formula in the test. */
+  {
+    const g1 = tier("P", "Partner"), g2 = tier("C", "Consultant");
+    const build = axisLabel => {
+      const st = baseState([g1, g2], [
+        person(g1.id, {office: "Berlin"}), person(g2.id, {office: "Munich"})
+      ]);
+      st.groupsLabel = axisLabel;
+      return matrixOf(st);
+    };
+    const shortX0 = build("HQ").bands[1].pts[0][0];
+    const longX0  = build("Global Operations").bands[1].pts[0][0];
+    check(longX0 > shortX0,
+      "a longer groupsLabel widens the gutter and pushes the first lane further right — got x0 " +
+      longX0 + " (long) vs " + shortX0 + " (short)");
+  }
+
+  /* ---- other engines ignore it: only Matrix draws state.groupsLabel — the
+     same "state.angle is never read" model as the block above, one layer
+     over. */
+  {
+    const g1 = tier("P", "Partner"), g2 = tier("C", "Consultant");
+    const base = baseState([g1, g2], [
+      person(g1.id, {office: "Berlin"}), person(g2.id, {office: "Munich"})
+    ]);
+    base.layout = "pyramid";
+    const shapes = ["", "Office"].map(gl => {
+      const st2 = JSON.parse(JSON.stringify(base)); st2.groupsLabel = gl;
+      return JSON.stringify(layout(st2));
+    });
+    eq(shapes[0], shapes[1],
+      "a non-Matrix layout's output is identical whether groupsLabel is empty or set — Pyramid never reads it");
+  }
+
   /* ---- SECOND SOURCE: a zero-groups state draws byte-identical to
      computeSwimlaneLayout on the same state — the proof that Matrix with
      nothing on its second axis really is the Swimlanes picture. */
@@ -2449,6 +2564,23 @@ async function rendererAgreementFor(kind){
     const viaSwimlanes = JSON.stringify(layout(st2));
     eq(viaMatrix, viaSwimlanes,
       "a zero-groups state draws byte-identical to computeSwimlaneLayout on the same state");
+  }
+  /* ---- the same identity, with a stored groupsLabel: a label with no
+     gutter to head still draws nothing, so the proof above must survive a
+     document that has one set — otherwise this field alone would break the
+     invariant every other Matrix property already respects. */
+  {
+    const g1 = tier("P", "Partner"), g2 = tier("C", "Consultant", {fill: "white"});
+    const st = noGroups(baseState([g1, g2], [
+      person(g1.id), person(g1.id), person(g2.id)
+    ]));
+    st.groupsLabel = "Office";
+    const viaMatrix = JSON.stringify(matrixOf(JSON.parse(JSON.stringify(st))));
+    const st2 = JSON.parse(JSON.stringify(st)); st2.layout = "swimlanes";
+    const viaSwimlanes = JSON.stringify(layout(st2));
+    eq(viaMatrix, viaSwimlanes,
+      "a zero-groups state with a stored groupsLabel still draws byte-identical to computeSwimlaneLayout " +
+      "— the label needs a gutter to land in, and zero groups has none");
   }
   /* the static pin that keeps the comparison above honest: computeMatrixLayout's
      own source must never call computeSwimlaneLayout, or the equality just

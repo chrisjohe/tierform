@@ -389,7 +389,7 @@ try{
         + (bare.ok ? "" : " — refused: " + bare.reason));
       if(bare.ok){
         for(const [k, want] of [
-          ["title", ""], ["brand", ""],
+          ["title", ""], ["brand", ""], ["groupsLabel", ""],
           ["accent", "#003153"], ["inkOnColour", "#FFFFFF"], ["inkOnWhite", "#1A2129"],
           ["bg", "white"], ["ring", "none"],
           ["page", "landscape"], ["density", "balanced"],
@@ -1073,6 +1073,28 @@ try{
         "font " + json(bad) + " repairs to open-sans");
       check(r.ok && r.repaired.some(w => /font/.test(w)),
         "and that font repair is reported");
+    }
+  }
+
+  /* ---- groupsLabel is a document label like title/brand: a stated
+     non-string repairs to the empty string and is reported; a stated
+     over-long string clamps to LIMITS.title and is reported too. Absent is
+     not a repair — the bare-file pin list above already proves that. ---- */
+  {
+    for(const bad of [7, null, {}, []]){
+      const r = parse(json(ok({groupsLabel: bad})));
+      check(r.ok && r.state.groupsLabel === "",
+        "groupsLabel " + json(bad) + " repairs to the empty string");
+      check(r.ok && r.repaired.some(w => /group-axis label/.test(w)),
+        "and that repair is reported — got " + json(r.repaired));
+    }
+    const long = "x".repeat(250);
+    const r = parse(json(ok({groupsLabel: long})));
+    check(r.ok, "an oversized groupsLabel is accepted, not refused");
+    if(r.ok){
+      eq(r.state.groupsLabel.length, M.LIMITS.title, "groupsLabel is truncated to the title limit");
+      check(r.repaired.some(w => /group-axis label/.test(w)),
+        "and the truncation is reported — got " + json(r.repaired));
     }
   }
 

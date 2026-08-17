@@ -724,6 +724,12 @@
   label.field > span{
     display:block;font-size:11px;color:var(--mute);margin-bottom:4px;letter-spacing:.02em;
   }
+  /* The Groups dialog's Axis label caption doubles as the modal's section
+     heading over the field — #groupTitle sits above it with no group of its
+     own to introduce it — so it reads at input-text size rather than the
+     shared rule's caption size. Colour stays the shared var(--mute); only
+     size and weight move, and only for this one label. */
+  label.field-big > span{font-size:13px;font-weight:600}
   input[type=text],select,input[type=color]{
     width:100%;font:inherit;font-size:13px;color:var(--ink);
     border:1px solid var(--line);border-radius:6px;background:var(--surface);
@@ -2330,6 +2336,7 @@
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="groupTitle">
     <button type="button" class="ghost modal-x" aria-label="Close" title="Close"><svg class="ic"><use href="#i-close"/></svg></button>
     <h3 id="groupTitle">Groups</h3>
+    <label class="field field-big"><span>Axis label <span class="badge-2d" aria-hidden="true">2D</span></span><input type="text" id="groupsLabel" maxlength="200" placeholder="Office, Team, …" title="Names the second dimension — drawn by the Matrix layout above the row labels, left of the first grade"></label>
     <p class="empty" style="padding-top:0" id="groupEmpty">No groups yet. People get one in the Add and Edit dialogs, or from the Group column of a pasted list or CSV.</p>
     <div id="groupList"></div>
     <div class="btnrow modal-foot">
@@ -2773,6 +2780,10 @@ function defaults(){
   return {
     title:"Team name",
     brand:"",
+    /* Names the second dimension — drawn only by the Matrix layout, above
+       the row-label gutter. Empty means nothing is drawn, so every document
+       that predates this field stays pixel-identical. */
+    groupsLabel:"",
     /* Which geometry engine draws this document. computeLayout dispatches on it;
        Pyramid is the default and is written into every new document rather than
        being inferred later. */
@@ -3084,7 +3095,7 @@ function stateLimitProblem(st){
   }
 
   const tooLong = (v, max) => typeof v !== "string" || v.length > max;
-  if(tooLong(st.title, LIMITS.title) || tooLong(st.brand, LIMITS.title))
+  if(tooLong(st.title, LIMITS.title) || tooLong(st.brand, LIMITS.title) || tooLong(st.groupsLabel, LIMITS.title))
     return "a document label is longer than " + LIMITS.title + " characters";
   if(st.tiers.some(t => tooLong(t.code, LIMITS.text) || tooLong(t.label, LIMITS.text)))
     return "a grade field is longer than " + LIMITS.text + " characters";
@@ -3193,6 +3204,7 @@ function parseAndValidateRoster(raw){
   const out = {
     title:  clampText(st.title, LIMITS.title),
     brand:  clampText(st.brand, LIMITS.title),
+    groupsLabel: clampText(st.groupsLabel, LIMITS.title),
     accent:      validColour(st.accent,      "#003153"),
     inkOnColour: validColour(st.inkOnColour, "#FFFFFF"),
     inkOnWhite:  validColour(st.inkOnWhite,  "#1A2129"),
@@ -3220,6 +3232,7 @@ function parseAndValidateRoster(raw){
   };
   noteChanged("title", "title");
   noteChanged("brand", "right-hand label");
+  noteChanged("groupsLabel", "group-axis label");
   noteChanged("accent", "accent colour");
   noteChanged("inkOnColour", "text colour on the accent");
   noteChanged("inkOnWhite", "text colour on white");
@@ -5724,12 +5737,24 @@ function computeMatrixLayout(st){
   /* ---- gutter: absent (zero width) unless some DRAWN row actually has a
      label to show. The catch-all row's label is always "", by position —
      it never contributes, whether or not it happens to be the only row. */
+  /* the axis label names the gutter column itself, e.g. "Office" — engine-
+     level tolerance for a non-string, the same stance `st.groups || []`
+     already takes; trimmed the way the title bar trims st.brand. */
+  const axisLabel = typeof st.groupsLabel === "string" ? st.groupsLabel.trim() : "";
+
   let gutterTotal = 0;
   const labelledRows = drawnRows.filter(row => row.label);
   if(labelledRows.length){
     meas.font = "600 14px " + F;
     let widest = 0;
     labelledRows.forEach(row => { widest = Math.max(widest, meas.measureText(row.label).width); });
+    /* the axis label is drawn at 700, not the row labels' 600 — measured at
+       the weight it is drawn at, or the gutter is sized for a string
+       narrower than what actually lands in it */
+    if(axisLabel){
+      meas.font = "700 14px " + F;
+      widest = Math.max(widest, meas.measureText(axisLabel).width);
+    }
     gutterTotal = Math.min(MX.gutterMax, Math.ceil(widest)) + MX.gutterPad;
   }
 
@@ -5766,6 +5791,17 @@ function computeMatrixLayout(st){
                 segs:[{t: ellipsize(row.label, gutterTotal - MX.gutterPad, "600 14px " + F), w:600}],
                 size:14, color: st.inkOnWhite});
   });
+
+  /* the heading of the row-label column itself, level with the lane
+     headings, on the page (no band) — absent exactly when the column it
+     names is, which is what keeps a zero-groups document byte-identical to
+     Swimlanes even with a stored axis label */
+  if(gutterTotal && axisLabel){
+    texts.push({x: laneGridStart - MX.gutterPad, y: laneTop + SW.headH/2,
+                anchor:"end", baseline:"middle",
+                segs:[{t: ellipsize(axisLabel, gutterTotal - MX.gutterPad, "700 14px " + F), w:700}],
+                size:14, color: st.inkOnWhite});
+  }
 
   /* the grid is centred under the title bar when the title is the wider of
      the two, same as Swimlanes — only shifted right by the gutter */
@@ -7962,6 +7998,7 @@ function groupRow(g, i, total){
 function syncGroupModal(){
   if(!Array.isArray(state.groups)) return;
   const groups = state.groups;
+  $("#groupsLabel").value = state.groupsLabel || "";
   $("#groupEmpty").hidden = groups.length > 0;
   fill($("#groupList"), groups.map((g,i)=>groupRow(g, i, groups.length)));
 }
@@ -10074,6 +10111,7 @@ $("#rosterSearchClear").addEventListener("click", ()=>{
 /* Design controls. The text and colour inputs stream events while you type or
    drag a colour wheel, so they are sessions; the dropdowns are discrete. */
 $("#title").addEventListener("input", e=>edit("title", "changed the title", ()=>{ state.title=clampText(e.target.value,LIMITS.title); }));
+$("#groupsLabel").addEventListener("input", e=>edit("groupsLabel", "changed the group-axis label", ()=>{ state.groupsLabel=clampText(e.target.value,LIMITS.title); }));
 $("#brand").addEventListener("input", e=>edit("brand", "changed the right-hand label", ()=>{ state.brand=clampText(e.target.value,LIMITS.title); }));
 $("#showGradeCode").addEventListener("change", e=>commit(
   e.target.checked ? "showed grade codes" : "hid grade codes",
