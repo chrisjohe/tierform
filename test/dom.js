@@ -114,9 +114,17 @@ for(const id of referenced){
    this suite — it is the anchor the byte-identity, ordering and @font-face
    checks locate the block by. The app itself has no reason to query it, the
    same "used by the test, not the app" shape i-* gets, so it is not a
-   leftover either. */
+   leftover either.
+
+   "tourBtn" is exempt for a third reason: it is kept on purpose across the
+   conversion from placeholder to live command ("ids stay stable" — see
+   CLAUDE.md), and the button now dispatches through data-cmd="tour" like its
+   three neighbours rather than through a $("#tourBtn") call, so nothing in
+   the script spells its id out any more. The id is decoration now, not
+   plumbing — this is the one place that is deliberate rather than a leftover
+   half of a move. */
 for(const id of declared){
-  if(id.startsWith("i-") || id === "fontcss") continue;
+  if(id.startsWith("i-") || id === "fontcss" || id === "tourBtn") continue;
   /* aria-controls / aria-labelledby / aria-describedby point at an id without a
      "#", and an id wired only that way is genuinely in use — the tab/panel and
      dialog/title relationships are exactly that. */
@@ -2983,10 +2991,11 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
     if(bar){
       const order = matchAll(/id="([A-Za-z]+)"|class="(sp)"/g, bar[0])
         .map(m => m[1] || m[2]);
-      check(order.join(",") === "hint,opening,sp,previewNote,hintRight",
+      check(order.join(",") === "tourMark,hint,opening,sp,previewNote,hintRight",
         "the id scan is flat over the markup, so nesting #hintRight inside "
         + "#previewNote leaves this order unchanged — it sits after the spacer, "
-        + "INSIDE the note whose fit percentage it states — got " + order.join(","));
+        + "INSIDE the note whose fit percentage it states, and #tourMark opens "
+        + "the bar ahead of #hint — got " + order.join(","));
 
       /* #hintRight nests inside #previewNote, so a lazy match that stops
          at the first </span> would cut the container off at #hintRight's own
@@ -5191,6 +5200,13 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
    either being compared against a copy written down here. */
 {
   const DIALOGS = ["askModal", "importModal", "addModal", "editModal", "pasteModal", "groupModal", "infoModal"];
+  /* infoModal is the last of the seven, so its own box would otherwise run to
+     the end of MARKUP — which now also holds the guided tour's own X
+     (#tourCard is a sibling declared right after the last modal-backdrop, not
+     an eighth dialog), and that second modal-x would be misread as
+     infoModal's own. This boundary keeps the tour's markup out of every
+     dialog's box the same way the next DIALOGS entry already does. */
+  const tourAt = MARKUP.indexOf('<div id="tourBlock"');
 
   /* --- one X per dialog, and one shape for all five --- */
   const shapes = [];
@@ -5198,6 +5214,7 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
     const from = MARKUP.indexOf('<div class="modal-backdrop" id="' + id + '"');
     const next = DIALOGS.map(d => MARKUP.indexOf('<div class="modal-backdrop" id="' + d + '"'))
       .filter(i => i > from);
+    if(tourAt > from) next.push(tourAt);
     const box = from < 0 ? "" : MARKUP.slice(from, next.length ? Math.min(...next) : MARKUP.length);
     check(from >= 0, "#" + id + " is readable");
     /* Matched on .modal-x alone, not on the whole class attribute: extracting by
@@ -6159,10 +6176,12 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
       + "is Tour, Tips, Privacy, Bug report, About");
   }
 
-  /* Tour is the group's fifth cell and has nothing behind it yet. Three things
-     make that honest rather than a lie the user finds by clicking, and each is
-     asserted separately because they fail in different ways: it says so, it is
-     still reachable to be asked, and it dispatches nothing. */
+  /* Tour is the group's fifth cell and now a live command, converted from the
+     placeholder it used to be. Each half of that conversion is asserted
+     separately because each fails in a different way: a live-looking button
+     with nothing behind it, an id still marked as switched off, a second copy
+     of the click sitting beside the dispatcher and firing twice, or a stray
+     sentence from the placeholder era left behind for someone to trip on. */
   {
     const tour = /<button class="([^"]*)"[^>]*id="tourBtn"[\s\S]{0,400}?<\/button>/.exec(pane);
     check(!!tour, "Tour is a button in Start's Info group");
@@ -6174,51 +6193,21 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
       check(/>\s*Tour\s*<\/button>/.test(tour[0]),
         "and is labelled Tour — one word, so column 1's width is Tips's and the "
         + "group cannot grow far enough to tip the ribbon into .has-scroll");
-      /* Two different breakages, so two checks: shipping it with neither
-         attribute makes it look live, and shipping it with the real one takes
-         it out of the tab order. The second reads the tag with the ARIA name
-         removed, or `aria-disabled` would satisfy a search for `disabled`. */
-      check(/aria-disabled="true"/.test(tour[0]),
-        "Tour is marked aria-disabled, or it looks like a command that works");
-      check(!/\bdisabled\b/.test(tour[0].replace(/aria-disabled/g, "")),
-        "and NOT with the real disabled attribute — that takes a control out of the "
-        + "tab order, and a keyboard user could then never reach the explanation");
-      check(/title="[^"]*not available[^"]*"/.test(tour[0]),
-        "and says why, in the wording Copy PNG uses for a capability it does not have");
-      check(!/data-cmd/.test(tour[0]),
-        "Tour names no command — there is nothing behind it, and a data-cmd pointing "
-        + "at an empty COMMANDS entry would look live to the dispatcher and the suites");
+      check(/data-cmd="tour"/.test(tour[0]),
+        "Tour dispatches through data-cmd, like its three neighbours");
+      check(!/aria-disabled/.test(tour[0]),
+        "…and carries no aria-disabled — the placeholder era's switched-off state is gone");
     }
-    /* The click, and the single copy of the sentence it repeats.
-       Cut to the end of the LINE, not to the first `;`. Cutting at the
-       semicolon read only as far as `toast(e.currentTarget.title` and left
-       everything after it outside the slice — a handler that toasted and then
-       opened a dialog was green, because the extraction had already thrown
-       away the half being asserted about. */
-    const wire = /\$\("#tourBtn"\)\.addEventListener\("click",(.*)$/m.exec(SCRIPT);
-    check(!!wire, "#tourBtn's click is wired at boot, since no command dispatches to it");
-    check(wire && /toast\(/.test(wire[1]),
-      "and it only toasts — the tooltip's own text, so hover and click cannot disagree");
-    check(wire && !/commit\(|edit\(|openInfo\(|state\./.test(wire[1]),
-      "it changes nothing: no state, no undo step, no dialog");
-    /* And it stays one expression on one line, which is what keeps the slice
-       above honest: a block body would put statements below the line this
-       reads, and the check would go quiet instead of going red. */
-    check(wire && !/\{/.test(wire[1]),
-      "the handler is a single expression — give it a block body and the check "
-      + "above stops seeing what you added, so rewrite it rather than widening it");
-    check(!/tour\s*:/i.test((/const COMMANDS\s*=\s*\{([\s\S]*?)\n\};/.exec(SCRIPT) || ["", ""])[1]),
-      "and COMMANDS gained no placeholder entry to satisfy the wiring check");
-    /* The weight it is drawn at, and the one property it must NOT copy from
-       :disabled — pointer-events:none there would swallow the click that asks. */
-    const CSS = (/<style>([\s\S]*?)<\/style>/.exec(MARKUP) || ["", ""])[1];
-    const rule = /button\[aria-disabled="true"\]\{([^}]*)\}/.exec(CSS);
-    check(!!rule, "aria-disabled has a rule of its own, or the button looks enabled");
-    check(rule && /opacity:\.38/.test(rule[1]),
-      "drawn at the same .38 weight :disabled gives Copy PNG");
-    check(rule && !/pointer-events/.test(rule[1]),
-      "and without :disabled's pointer-events:none, which would swallow the click "
-      + "that is the only way to be told why");
+    /* Static absence: no second listener bound directly to #tourBtn, which
+       would fire beside COMMANDS.tour and double the effect of one click. */
+    check(!/\$\("#tourBtn"\)\.addEventListener/.test(SCRIPT),
+      "no second click listener is bound to #tourBtn — the command table is now "
+      + "the only thing that fires on it");
+    check(!/not available in this build/.test(HTML),
+      "the placeholder era's sentence appears nowhere in the file any more");
+    check(/attrs:\{"data-cmd":"tour"\}/.test(SCRIPT),
+      "the start-view footer's own Tour entry emits data-cmd=\"tour\" too — "
+      + "the same command as the ribbon button, not a second one");
   }
 
   /* Read the actual .rb-body extent, then require every ribbon pane — notably
@@ -8195,7 +8184,7 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
                 "exportCsv", "exportPdf", "exportPng", "exportSvg", "groups", "importCsv", "infoAbout", "infoBug",
                 "infoPrivacy", "infoTips",
                 "new", "open", "pasteList", "redo", "save", "saveAs",
-                "toggleRoster",
+                "toggleRoster", "tour",
                 "undo"];
   check(all.join(",") === want.join(","),
     "the full set of data-cmd values matches exactly — got: " + all.join(","));
@@ -8603,6 +8592,122 @@ const VOID = ["input","br","img","hr","meta","link"];
     check(!!fpHover && fpHover.index > globalHover,
       "…also after button:hover, for the same tie-breaking reason");
   }
+}
+
+/* ---------------------------------------------------------- 8. the guided
+   tour's own chrome: the spotlight ring, the step card, the click-blocker,
+   the three-step script and the sample-roster marker. document.js owns the
+   swap (startTour/endTour/tourGoto and their state); this suite owns
+   everything that never touches state — markup, CSS and the static shape of
+   TOUR itself. */
+{
+  /* --- TOUR anchors resolve — the sprite-symbol shape: a class check over
+     every row, not a list of the three that exist today. TOUR's own rows are
+     simple object literals with no nested braces, so a lazy bracket match is
+     enough here, the same as COMMANDS' own extraction elsewhere in this
+     file — document.js's more general grabDecl needs a mask because it also
+     has to survive arbitrary function bodies; this does not. */
+  const tourSrc = (/const TOUR = \[([\s\S]*?)\n\];/.exec(SCRIPT) || ["", ""])[1];
+  check(tourSrc.length > 0, "TOUR is readable as a top-level array literal");
+  const rows = matchAll(/\{tab:"([a-z]+)",\s*anchor:('[^']*'|"[^"]*"),/g, tourSrc);
+  check(rows.length >= 3, "TOUR has at least 3 rows — got " + rows.length);
+
+  /* --- TOUR tabs are real hooks — the second writer, never a restated list --- */
+  const tabHooks = uniq(matchAll(/<button[^>]*class="rb-tab[^"]*"[^>]*data-tab="([a-z]+)"/g,
+                                  MARKUP).map(m => m[1]));
+
+  for(const m of rows){
+    const tab = m[1];
+    const anchorLit = m[2];
+    const anchor = anchorLit.slice(1, -1);
+    const idShape  = /^#[\w-]+$/.test(anchor);
+    const cmdShape = /^\[data-cmd="[\w-]+"\]$/.test(anchor);
+    check(idShape || cmdShape,
+      "TOUR row's anchor is a full literal, one of the two statically resolvable "
+      + "shapes (#id or [data-cmd=\"…\"]) — got " + anchorLit);
+    if(idShape){
+      check(declared.includes(anchor.slice(1)),
+        "…and its id exists in the markup — " + anchor);
+    }else if(cmdShape){
+      const cmd = /data-cmd="([\w-]+)"/.exec(anchor)[1];
+      check(MARKUP.includes('data-cmd="' + cmd + '"'),
+        "…and that data-cmd value appears in the markup — " + anchor);
+    }
+    check(tabHooks.includes(tab),
+      "TOUR row's tab is one of the ribbon's own data-tab hooks — got \"" + tab
+      + "\", hooks are " + tabHooks.join(","));
+  }
+
+  /* --- the trio and the marker --- */
+  check(/<div id="tourBlock" aria-hidden="true"><\/div>/.test(MARKUP),
+    "#tourBlock is a plain aria-hidden click-blocker");
+  check(/<div id="tourRing" aria-hidden="true"><\/div>/.test(MARKUP),
+    "#tourRing is a plain aria-hidden spotlight ring");
+  check(/<div id="tourCard" role="dialog" aria-labelledby="tourTitle">/.test(MARKUP),
+    "#tourCard is a dialog labelled by its own title");
+  for(const id of ["tourTitle", "tourBody", "tourCount", "tourBack", "tourNext", "tourX"]){
+    check(declared.includes(id), "#" + id + " exists in the markup");
+  }
+  check(/<span class="tour-mark" id="tourMark">Tour · sample roster<\/span>/.test(MARKUP),
+    "#tourMark carries the exact literal marker text");
+  check(MARKUP.indexOf('<div class="statusbar">') >= 0
+     && MARKUP.indexOf('<div class="statusbar">') < MARKUP.indexOf('id="tourMark"'),
+    "…and it sits inside the status bar, not merely somewhere in the file");
+
+  /* --- CSS truths, read off the literal rules rather than a resolver — the
+     idiom every other display-gated rule in this file already uses --- */
+  const css = /<style>([\s\S]*?)<\/style>/.exec(MARKUP);
+  const CSS = css ? css[1] : "";
+
+  const ringDecls = (/\n\s*#tourRing\{([^}]*)\}/.exec(CSS) || ["", ""])[1];
+  check(/pointer-events:none/.test(ringDecls),
+    "#tourRing does not intercept the pointer — #tourBlock does that");
+  check(/box-shadow:[^;]*var\(--tour-dim\)/.test(ringDecls),
+    "#tourRing's box-shadow states --tour-dim, not a literal colour restated");
+
+  const darkAt = CSS.indexOf("@media (prefers-color-scheme: dark)");
+  check(darkAt > 0, "the dark block is readable");
+  const lightTourDim = CSS.indexOf("--tour-dim:");
+  check(lightTourDim >= 0 && lightTourDim < darkAt,
+    "--tour-dim has a light value in the light :root, before the dark block");
+  const darkTourDim = CSS.indexOf("--tour-dim:", darkAt);
+  check(darkTourDim > darkAt,
+    "…and the dark block redefines it to its own deeper value — the token-swap "
+    + "pair, two writers pinned against each other");
+
+  check(/#tourBlock,#tourRing,#tourCard\{display:none\}/.test(CSS),
+    "tourBlock/tourRing/tourCard share one ungated display:none rule");
+  check(/#tourMark\{display:none\}/.test(CSS),
+    "#tourMark has its own ungated display:none rule");
+  for(const [id, shown] of [["tourBlock","block"], ["tourRing","block"],
+                             ["tourCard","block"], ["tourMark","inline-flex"]]){
+    check(new RegExp("body\\.tour-on #" + id + "\\{display:" + shown + "\\}").test(CSS),
+      "body.tour-on #" + id + " resolves to display:" + shown);
+  }
+
+  /* z-index: strictly increasing block < ring < card, read off each
+     element's own rule rather than pinned to today's literal numbers. */
+  const zOf = id => {
+    const m = new RegExp("\\n\\s*#" + id + "\\{[^}]*z-index:(\\d+)").exec(CSS);
+    return m ? parseInt(m[1], 10) : null;
+  };
+  const zBlock = zOf("tourBlock"), zRing = zOf("tourRing"), zCard = zOf("tourCard");
+  check(zBlock !== null && zRing !== null && zCard !== null && zBlock < zRing && zRing < zCard,
+    "tourBlock/tourRing/tourCard z-indexes are strictly increasing — got "
+    + zBlock + "," + zRing + "," + zCard);
+
+  /* --- Escape order: the tour's own gate runs before the first Escape-modal
+     branch, ahead of it in the same listener, so it consumes first --- */
+  const gateAt = SCRIPT.indexOf("if(tourSaved){");
+  const escAt  = SCRIPT.indexOf('e.key==="Escape" && menuOpen()');
+  check(gateAt >= 0 && escAt >= 0 && gateAt < escAt,
+    "the tour's keydown gate sits before the first Escape-modal branch — it "
+    + "runs first and consumes");
+
+  /* --- trapTab: the click-blocker stops the pointer, this stops Tab from
+     walking the keyboard into the ribbon behind the card --- */
+  check(/trapTab\("#tourCard"\);/.test(SCRIPT),
+    "#tourCard is in the Tab trap list beside the seven modals");
 }
 
 /* ---------------------------------------------------------- report */

@@ -92,6 +92,7 @@
     --hot:rgba(var(--brand-rgb),.05);         /* hover wash: drop zones, start cards */
     --hot-strong:rgba(var(--brand-rgb),.06);  /* the canvas-wide drop wash */
     --focus-glow:rgba(var(--brand-rgb),.12);  /* focus ring glow on text fields */
+    --tour-dim:rgba(0,0,0,.45);  /* the guided tour's spotlight dim, around the ring */
     --font: 'Open Sans', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif;
   }
   *{box-sizing:border-box}
@@ -684,6 +685,40 @@
   .about-made{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:14px!important;font-size:11.5px;color:var(--ink-2)}
   .about-flag{width:18px;height:12px;flex:0 0 auto}
 
+  /* ---------- guided tour ----------
+     Three elements, one gate: body.tour-on is the ONE truth the CSS reads for
+     tour visibility (like body.roster-hidden for the panel). All four are
+     hidden without it — the click-blocker, the ring and the card are chrome
+     the DOM always carries, and #tourMark lives in the status bar rule block
+     below rather than here, so its display rule sits beside its sibling
+     spans'. */
+  #tourBlock,#tourRing,#tourCard{display:none}
+  body.tour-on #tourBlock{display:block}
+  body.tour-on #tourRing{display:block}
+  body.tour-on #tourCard{display:block}
+  /* Transparent and above everything but the ring and the card: during the
+     tour you watch, you don't drive, so this one element blocks every click
+     the pointer could make on the chart or the ribbon underneath it. */
+  #tourBlock{position:fixed;inset:0;z-index:120}
+  /* One element is both the hole and the dimming: a solid white outline reads
+     against the dimmed edge in both colour schemes, and the huge spread on
+     the shadow paints --tour-dim everywhere OUTSIDE the ring's own box. */
+  #tourRing{
+    position:fixed;z-index:121;pointer-events:none;
+    border:2px solid #fff;border-radius:8px;
+    box-shadow:0 0 0 9999px var(--tour-dim);
+  }
+  #tourCard{
+    position:fixed;z-index:122;
+    background:var(--surface);color:var(--ink);border:1px solid var(--line);
+    border-radius:8px;width:280px;padding:14px 16px;
+    box-shadow:0 20px 60px rgba(16,22,30,.28);
+  }
+  #tourTitle{margin:0 0 6px;font-size:13.5px;font-weight:600}
+  #tourBody{margin:0 0 12px;font-size:12.5px;color:var(--ink-2)}
+  .tour-foot{display:flex;align-items:center;gap:8px}
+  #tourCount{margin-right:auto;font-size:11px;color:var(--mute)}
+
   /* ---------- status bar ---------- */
   .statusbar{
     flex:0 0 auto;display:flex;align-items:center;gap:10px;
@@ -696,6 +731,14 @@
   .preview-note .ic{width:13px;height:13px}
   .opening{color:var(--brand-ink);font-weight:600}
   .opening[hidden]{display:none}
+  /* The unmistakable marker that the roster on screen is the tour's sample —
+     visible only under body.tour-on; afterwards, silence. */
+  #tourMark{display:none}
+  body.tour-on #tourMark{display:inline-flex}
+  .tour-mark{
+    background:var(--brand);color:#fff;border-radius:3px;padding:1px 7px;
+    font-size:11px;font-weight:600;
+  }
 
   /* ---------- sidebar ---------- */
   .panel{
@@ -1431,6 +1474,9 @@
       --hot:rgba(127,176,216,.10);
       --hot-strong:rgba(127,176,216,.13);
       --focus-glow:rgba(127,176,216,.30);
+      /* .45 reads against near-white chrome; over near-black chrome the same
+         alpha is nearly invisible, so the dark spotlight needs the deeper step. */
+      --tour-dim:rgba(0,0,0,.6);
     }
   }
 </style>
@@ -1699,16 +1745,16 @@
            column before moving right, so the markup order is Tour, Tips,
            Privacy, Bug report — and About as the full-height lead in column 3.
            See .info-actions in the sheet for why the four are peers.
-           Tour is switched off with aria-disabled rather than the disabled
-           attribute: disabled takes a control out of the tab order, and a
-           keyboard user would then have no way to reach the one thing this
-           button currently has to say. It carries no data-cmd, because there
-           is no command behind it yet and a name that dispatches to nothing is
-           a dead button; #tourBtn and its click are wired at boot instead. -->
+           Tour now dispatches like its three neighbours: data-cmd="tour" runs
+           COMMANDS.tour, which is startTour() — the document swap plus the
+           spotlight chrome it drives. The title states the promise the swap
+           itself keeps: your document is set aside whole and comes back
+           untouched when the tour ends. #tourBtn keeps its id (ids stay
+           stable across a conversion like this one). -->
       <div class="rb-group">
         <div class="rb-file info-actions">
-          <button class="rb-mini" id="tourBtn" aria-disabled="true"
-                  title="The guided tour is not available in this build yet — Privacy, Tips and Bug report cover the same ground">
+          <button class="rb-mini" id="tourBtn" data-cmd="tour"
+                  title="A short guided tour on a sample roster — your document is set aside and comes back untouched">
             <svg class="ic"><use href="#i-animated-images"/></svg>Tour
           </button>
           <button class="rb-mini" data-cmd="infoTips" title="Shortcuts, tips and browser notes">
@@ -2072,6 +2118,9 @@
 </div>
 
 <div class="statusbar">
+  <!-- The unmistakable marker that the roster on screen is the tour's sample,
+       visible only for as long as body.tour-on is; afterwards, silence. -->
+  <span class="tour-mark" id="tourMark">Tour · sample roster</span>
   <span id="hint"></span>
   <!-- Opening a roster is not instant — its photos are decoded first, and a UI
        that shows nothing while it works looks like one that ignored the click.
@@ -2523,6 +2572,30 @@
     <div class="btnrow modal-foot">
       <button class="primary" id="infoCloseBtn">Close</button>
     </div>
+  </div>
+</div>
+
+<!-- The guided tour's own chrome — deliberately NOT a .modal-backdrop dialog:
+     it points at a live control on the Start tab rather than blocking the
+     whole canvas behind an overlay, so it needs its own click-blocker
+     (#tourBlock) instead of the shared one, and its own ring and card rather
+     than .modal's box. Three siblings, one gate: body.tour-on is the ONE
+     truth the CSS reads (see the "guided tour" rule block above), so none of
+     the three carries a [hidden] attribute of its own — a second mechanism
+     here would only give visibility two answers to disagree with each other.
+     #tourX is Escape made visible, the same principle every modal's own X
+     follows, and Next carries button.primary as the confirming action for
+     the same reason Done and Close do in every other dialog's foot. -->
+<div id="tourBlock" aria-hidden="true"></div>
+<div id="tourRing" aria-hidden="true"></div>
+<div id="tourCard" role="dialog" aria-labelledby="tourTitle">
+  <button type="button" class="ghost modal-x" id="tourX" aria-label="End the tour" title="End the tour"><svg class="ic"><use href="#i-close"/></svg></button>
+  <h3 id="tourTitle"></h3>
+  <p id="tourBody"></p>
+  <div class="tour-foot">
+    <span id="tourCount"></span>
+    <button type="button" class="ghost" id="tourBack">Back</button>
+    <button type="button" class="primary" id="tourNext">Next</button>
   </div>
 </div>
 
@@ -3998,12 +4071,51 @@ function resetPerRoster(){
 
    `tourSaved` is the one truth of whether the tour is running: null means it
    is not, and every guard below reads it rather than keeping a second flag
-   that could disagree with it.
-
-   (No tour UI exists yet — no ring, no card, no body class, no Escape
-   handling. This is the swap machinery a later commit builds the chrome on
-   top of.) */
+   that could disagree with it. `body.tour-on` is the second truth this
+   section writes — the ONE the CSS reads for tour visibility, exactly the
+   way `body.roster-hidden` is for the panel — and it is written only here,
+   on the line immediately beside each write of `tourSaved` itself, so the
+   two can never come to disagree about whether the tour is running. */
 let tourSaved = null;
+let tourStep = 0;
+
+/* One table, one writer: step order, the step count ("Step N of M") and
+   which ribbon tab a step opens on are all read out of this array, never
+   restated beside it. Anchors are FULL selector literals — `#id` or
+   `[data-cmd="…"]` only — because the static check that proves every one of
+   them resolves to something on screen cannot see through a variable.
+   `run` is an optional per-step side effect executed during replay; no row
+   states one yet — step (c) adds the first, the one demonstrated
+   mutation — but the replay loop below is written now because that is what
+   makes Back trivial once a step has something to replay. */
+const TOUR = [
+  {tab:"file", anchor:'[data-cmd="addPeople"]', title:"Add your team",
+   body:"One person at a time with photo, grade and group — the caret holds the paste-list and CSV routes."},
+  {tab:"file", anchor:"#exportMenuBtn", title:"Take it with you",
+   body:"PNG, PDF, SVG or CSV — every format is drawn from the same layout you see here."},
+  {tab:"file", anchor:'[data-cmd="infoPrivacy"]', title:"Private by design",
+   body:"Everything runs on your device — editing and exporting touch the network zero times."}
+];
+
+/* The ONE navigation path — Next, Back and startTour all reach a step
+   through this, never through the swap-in lines directly. Every step change
+   rebuilds the demo document from scratch and replays the side effects of
+   steps 0..i: no step has ever been undone on the demo's own history, so
+   there is nothing to unwind and nothing that can drift from a replay done
+   the same way every time. That is what makes Back trivial — "Back discards
+   the demo document and replays" — the moment a step's `run` exists. */
+function tourGoto(i){
+  state = demoDoc();
+  history = [];
+  hIndex = -1;
+  historyPending = false;
+  docName = "";
+  dirtyDoc = false;
+  for(let k = 0; k <= i; k++) if(TOUR[k].run) TOUR[k].run();
+  tourStep = i;
+  renderAll();
+  showTourStep(i);
+}
 
 /* Refuses while any of the seven modals is open (the one class they all
    share) or an import is mid-flight, and refuses a second start while
@@ -4024,13 +4136,8 @@ function startTour(){
   newGeneration();
 
   tourSaved = {state, history, hIndex, historyPending, docName, dirtyDoc};
-  state = demoDoc();
-  history = [];
-  hIndex = -1;
-  historyPending = false;
-  docName = "";
-  dirtyDoc = false;
-  renderAll();
+  document.body.classList.add("tour-on");
+  tourGoto(0);
   return true;
 }
 
@@ -4050,7 +4157,48 @@ function endTour(){
   docName        = tourSaved.docName;
   dirtyDoc       = tourSaved.dirtyDoc;
   tourSaved = null;
+  document.body.classList.remove("tour-on");
   renderAll();
+}
+
+/* Chrome only — no state write reaches here, which is what keeps this
+   function out of test/document.js's reach and inside test/dom.js's instead.
+   Reads a real rect off the step's own anchor and places the ring around it
+   and the card below it, preferring the space under the ring the way every
+   anchor here has room for today; a short window flips the card above
+   instead. The card is measured AFTER its text is filled, because its
+   height depends on what just went into it. */
+function showTourStep(i){
+  const step = TOUR[i];
+  selectTab(step.tab, false);
+
+  const anchor = document.querySelector(step.anchor);
+  const r = anchor.getBoundingClientRect();
+  const pad = 4;
+  const ring = $("#tourRing");
+  ring.style.left   = (r.left - pad) + "px";
+  ring.style.top    = (r.top - pad) + "px";
+  ring.style.width  = (r.width + pad * 2) + "px";
+  ring.style.height = (r.height + pad * 2) + "px";
+
+  $("#tourTitle").textContent = step.title;
+  $("#tourBody").textContent  = step.body;
+  $("#tourCount").textContent = "Step " + (i + 1) + " of " + TOUR.length;
+  $("#tourBack").disabled = i === 0;
+  $("#tourNext").textContent = i + 1 < TOUR.length ? "Next" : "Done";
+
+  const margin = 8;
+  const card = $("#tourCard");
+  const cr = card.getBoundingClientRect();
+  const below = r.bottom + 12;
+  const top = below + cr.height <= window.innerHeight - margin
+    ? below
+    : r.top - cr.height - 12;
+  const left = Math.min(Math.max(r.left, margin), window.innerWidth - cr.width - margin);
+  card.style.top  = top + "px";
+  card.style.left = left + "px";
+
+  $("#tourNext").focus({preventScroll:true});
 }
 /* Everything that can lose unsaved work asks first, and the buttons say what
    they do — "Discard and open" rather than "OK". These are async because the
@@ -6483,6 +6631,9 @@ function startView(){
       text:"Open a roster file, or begin with a template."}),
     el("div", {cls:"start-cards"}, cards),
     el("div", {cls:"start-foot"}, [
+      el("button", {cls:"start-foot-btn",
+        title:"A short guided tour on a sample roster — your document is set aside and comes back untouched",
+        attrs:{"data-cmd":"tour"}}, [icon("#i-animated-images"), "Tour"]),
       el("span", {text:"Everything processed offline on your device · nothing uploaded"}),
       el("button", {cls:"start-foot-btn",
         title:"Where your data lives, and how to handle roster files",
@@ -8030,6 +8181,9 @@ trapTab("#addModal");
 trapTab("#importModal");
 trapTab("#editModal");
 trapTab("#groupModal");
+/* #tourBlock already stops the pointer from reaching anything behind the
+   card; this stops Tab from walking the keyboard into the ribbon behind it. */
+trapTab("#tourCard");
 
 /* The close X on each dialog, and the whole point of writing them as one table:
    an X is Escape made visible, so each one calls exactly the function the
@@ -9026,6 +9180,7 @@ const COMMANDS = {
   infoTips:    ()=>openInfo("tips"),
   infoBug:     ()=>openInfo("bug"),
   infoAbout:   ()=>openInfo("about"),
+  tour:        ()=>startTour(),
 
   /* people */
   /* The split's face. Unlike every other add route this one is NOT disabled
@@ -10389,13 +10544,16 @@ $("#drop").addEventListener("click", ()=>openAddModal());
   });
 });
 $("#infoCloseBtn").addEventListener("click", closeInfoModal);
-/* Tour has no COMMANDS entry, on purpose: there is nothing behind it yet, and a
-   data-cmd naming an empty function would look live to the dispatcher, to the
-   suites and to whoever reads it next. So it is wired here instead, and the one
-   thing it does is repeat what it already says on hover — the title is the only
-   copy of that sentence, so the click and the tooltip cannot come to disagree.
-   Nothing else happens: no state, no commit, no dialog. */
-$("#tourBtn").addEventListener("click", e => toast(e.currentTarget.title));
+/* The tour's own three controls. tourGoto is the ONE navigation path — Back
+   and Next both reach it, never the swap-in lines directly — and the last
+   step's Next has nothing further to walk to, so it ends the tour instead.
+   #tourX is Escape made visible, the same principle every modal's own X
+   button follows. */
+$("#tourBack").addEventListener("click", ()=>{ if(tourStep > 0) tourGoto(tourStep - 1); });
+$("#tourNext").addEventListener("click", ()=>{
+  if(tourStep + 1 < TOUR.length) tourGoto(tourStep + 1); else endTour();
+});
+$("#tourX").addEventListener("click", ()=>{ endTour(); });
 $("#importConfirmBtn").addEventListener("click", ()=>importClose({
   tierId: $("#importTier").value || firstTierId(),
   groupText: clampText($("#importGroup").value.trim(), LIMITS.text)
@@ -10715,6 +10873,13 @@ document.addEventListener("focusout", e=>{
 });
 
 document.addEventListener("keydown", e=>{
+  /* The tour's keys run first and consume: Escape ends it, and the undo
+     shortcut reaches neither the user's history (set aside) nor the demo's —
+     during the tour you watch, you don't drive. */
+  if(tourSaved){
+    if(e.key === "Escape"){ endTour(); return; }
+    if((e.ctrlKey||e.metaKey) && e.key.toLowerCase() === "z"){ e.preventDefault(); return; }
+  }
   /* Enter and Escape both mean "I am done with this field" */
   if((e.key==="Enter" || e.key==="Escape") && document.activeElement
      && document.activeElement.tagName==="INPUT") endEdit();
@@ -10733,9 +10898,6 @@ document.addEventListener("keydown", e=>{
   if(e.key==="Escape" && !$("#pasteModal").hidden){ closePasteModal(); return; }
   if(e.key==="Escape" && !$("#infoModal").hidden){ closeInfoModal(); return; }
   if(e.key==="Escape" && !$("#groupModal").hidden){ closeGroupModal(); return; }
-  /* During the tour you watch, you don't drive: the undo shortcut must reach
-     neither the user's history (set aside) nor the demo's. */
-  if(tourSaved && (e.ctrlKey||e.metaKey) && e.key.toLowerCase()==="z"){ e.preventDefault(); return; }
   if(!(e.ctrlKey||e.metaKey) || e.key.toLowerCase()!=="z") return;
   const tag = document.activeElement && document.activeElement.tagName;
   if(tag==="INPUT" || tag==="TEXTAREA") return;   // let native text undo handle it

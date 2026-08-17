@@ -372,8 +372,10 @@ const DECLS = ["HEX6","CONTRAST_MIN","SVGNS",
                /* The one truth of whether the guided tour is running: null
                   when it is not, the whole set-aside user document — state,
                   history, hIndex, historyPending, docName, dirtyDoc — while
-                  it is. */
-               "tourSaved"];
+                  it is. tourStep is the second half of the tour's own state,
+                  which step is showing; TOUR is the one table both tourGoto
+                  (grabbed below) and showTourStep (stubbed above) read. */
+               "tourSaved", "tourStep", "TOUR"];
 /* cloneState is gone: history entries now cross a boundary that swaps photo
    bytes for store ids, so the two directions are named separately. commit()
    and edit() are the only ways state changes, so both come along. */
@@ -396,8 +398,11 @@ const FNS   = ["updateDocLabel","syncNeverSavedBar","markDirty","resetPerRoster"
                "TEMPLATES","applyTemplate",
                /* demoDoc builds the guided tour's own document FROM TEMPLATES'
                   big4-green entry; startTour/endTour are the swap that puts it
-                  live in place of the user's document and back again. */
-               "demoDoc","startTour","endTour",
+                  live in place of the user's document and back again. tourGoto
+                  is the ONE navigation path startTour and the step buttons
+                  both call — real here, unlike showTourStep (a PREAMBLE stub
+                  above), because it is what writes state, not chrome. */
+               "demoDoc","startTour","endTour","tourGoto",
                "defaults","normalizeGradeLinks","reorderGrade","angleIndex","clampFrame",
                "frameLimit","photoPut","photoGet","photoSweep","packState","unpackState",
                "snapshot","canUndo","canRedo","undo","redo","render","commit","endEdit","edit",
@@ -698,6 +703,23 @@ const PREAMBLE = `
     n.dataset = {};
     return n;
   }
+  /* body.tour-on is the ONE truth the CSS reads for tour visibility — the
+     same standing body.roster-hidden has for the panel — and this suite's
+     whole interest in it is behavioural: that startTour/endTour write it on
+     the line immediately beside each write of tourSaved, never on their own.
+     CLASSES is the second source that answers that: every add/remove the
+     app's document.body.classList sees, in order, so "the class truth sits
+     adjacent to tourSaved" is read off a log rather than off the source text
+     of the function being tested. */
+  const CLASSES = [];
+  /* Chrome test/dom.js owns — it measures a real anchor's getBoundingClientRect
+     and places the ring and the card, none of which this suite has geometry
+     for. Stubbed here to record which step it was asked to show, which is
+     what proves tourGoto's own replay loop calls it once per step, in order,
+     without embedding any of that geometry. Declared here rather than pulled
+     from FNS, so this stub — not the real one — is what tourGoto calls. */
+  const SHOWN = [];
+  function showTourStep(i){ SHOWN.push(i); }
   /* Every extracted function that touches the DOM has it stubbed at $()
      instead, with one exception: startTour reads document.querySelector
      directly to ask whether a modal is open, which is why this object now
@@ -712,6 +734,10 @@ const PREAMBLE = `
                     contains(){ return false; },
                     createTextNode(t){ const n = stubEl("#text"); n.textContent = String(t); return n; },
                     activeElement: null,
+                    body: {classList: {
+                      add(c){ CLASSES.push({op:"add", cls:c}); },
+                      remove(c){ CLASSES.push({op:"remove", cls:c}); }
+                    }},
                     /* startTour's own modal-open check answers for real. Giving
                        document a querySelector at all also makes syncRowIdentity's
                        OWN guard (its early "if there is no document.querySelector,
@@ -1000,6 +1026,23 @@ const PREAMBLE = `
     }
     if(sel === "#groupEmpty") return {get hidden(){ return GROUP_EMPTY.hidden; },
                                       set hidden(v){ GROUP_EMPTY.hidden = !!v; }};
+    /* The keydown Escape chain asks each of these eight, one after another,
+       whether it is open before it ever reaches the plain Ctrl+Z branch —
+       and every one of them falls into the generic throwaway below, which
+       carries no "hidden" property at all, so !$("#askModal").hidden reads
+       !undefined, i.e. true, and the FIRST of the eight fires its closer
+       unconditionally. Mid-tour the true answer is always "closed": startTour
+       refuses to start while any of the seven modals is open, and #gradePanel
+       is chrome nothing in this suite ever opens — so this answers what the
+       app would actually find there, rather than the accidental "yes" above.
+       This closes only the ASK, not the ACT: askClose, closeGradePanel,
+       importClose, closeAddModal, closeEditModal, closePasteModal,
+       closeInfoModal and closeGroupModal are still not stubbed anywhere in
+       this file, so a handler that reaches one of them because it misjudged
+       one of these eight as open still throws loudly, exactly as before. */
+    if(["#askModal", "#gradePanel", "#importModal", "#addModal", "#editModal",
+        "#pasteModal", "#infoModal", "#groupModal"].indexOf(sel) >= 0)
+      return {hidden:true};
     /* Anything that is not an id is not on screen in this suite: there is no
        document to query, and the throwaway below would answer "yes there is" to
        every one of them. syncFramePreview asks for the framing circle by class
@@ -1091,6 +1134,14 @@ function makeModule(){
         'window.addEventListener("beforeunload", e=>{', "beforeunload") + "\n"
     + "function keydownHandler(e)" + grabRawListener(
         'document.addEventListener("keydown", e=>{', "keydown") + "\n"
+    /* The tour's own three buttons, taken whole for the same reason as the
+       two above: tourGoto is the ONE navigation path, and whether Back/Next
+       call it or call endTour() instead lives in these bodies and nowhere
+       else — a suite that called tourGoto/endTour itself would go on
+       passing after a button stopped choosing between them correctly. */
+    + "function clickTourBack()" + grabListener("#tourBack", "click") + "\n"
+    + "function clickTourNext()" + grabListener("#tourNext", "click") + "\n"
+    + "function clickTourX()"    + grabListener("#tourX",    "click") + "\n"
     + `return {
         addFiles, swapChange, newGeneration, staleWrite, applyPhoto,
         /* the click, not the function it happens to call */
@@ -1243,6 +1294,20 @@ function makeModule(){
         setModalOpen(v){ MODAL_OPEN = v; },
         get importBusy(){ return importBusy; },
         set importBusy(v){ importBusy = v; },
+        /* The tour's chrome-facing half. tourGoto is the ONE navigation path;
+           tourStep and TOUR are read back to prove where it left the tour;
+           classes is document.body.classList's own log, so "the class truth
+           sits adjacent to tourSaved" is read off a second source rather than
+           off the function's text; tourShown is showTourStep's own call log
+           (named apart from the existing "shown" getter above, which is the
+           document-status strip's). The three buttons are driven the way a
+           click drives them, through the real delegated bodies grabbed above. */
+        tourGoto,
+        get tourStep(){ return tourStep; },
+        TOUR,
+        get classes(){ return CLASSES; },
+        get tourShown(){ return SHOWN; },
+        clickTourBack, clickTourNext, clickTourX,
         /* The tour's two guards, taken whole above — driven with a synthetic
            event exactly as the two listeners are driven for real. */
         beforeUnload, keydownHandler,
@@ -6956,6 +7021,127 @@ async function runSuite(){
     check(M.historyPending !== userPendingBefore,
       "…and now DOES reach the real undo() — historyPending flips exactly as undo() always "
       + "makes it, proving the shortcut is live again");
+  });
+
+  /* --- 16g. COMMANDS.tour, and the class truth sitting beside tourSaved's own
+     writes --- */
+  await guarded("16g completes without throwing", async () => {
+    const M = makeModule();
+    M.state = M.defaults();
+    M.state.tiers = sixGrades();
+
+    check(typeof M.commands.tour === "function", "COMMANDS.tour exists and is callable");
+    check(M.classes.length === 0, "starting the tour is the first thing that touches the class log");
+    await M.commands.tour();
+    check(M.tourSaved !== null, "the command starts the tour — tourSaved is set");
+    check(M.classes.length === 1 && M.classes[0].op === "add" && M.classes[0].cls === "tour-on",
+      "…and body.tour-on was added exactly once — got " + JSON.stringify(M.classes));
+
+    M.endTour();
+    check(M.tourSaved === null, "endTour clears tourSaved");
+    const last = M.classes[M.classes.length - 1];
+    check(!!last && last.op === "remove" && last.cls === "tour-on",
+      "…and the log's LAST entry is the remove — the two truths' writers sit adjacent, "
+      + "got " + JSON.stringify(M.classes));
+
+    /* A refusal must not touch the class log at all — the same "untouched"
+       standing 16d already proves for state and tourSaved. */
+    const before = M.classes.length;
+    M.setModalOpen(true);
+    check(M.startTour() === false, "a modal open refuses the tour");
+    check(M.classes.length === before, "…and the refusal left the class log exactly as it was");
+    M.setModalOpen(false);
+  });
+
+  /* --- 16h. replay discards: tourGoto(0) rebuilds a fresh demo, mid-tour
+     work and all --- */
+  await guarded("16h completes without throwing", async () => {
+    const M = makeModule();
+    M.state = M.defaults();
+    M.state.tiers = sixGrades();
+    check(M.startTour(), "the tour starts");
+
+    M.commit("switched the demo to swimlanes", () => { M.state.layout = "swimlanes"; }, {render:"all"});
+    eq(M.dirtyDoc, true, "the demo's own commit dirties the demo");
+    eq(M.history.length, 1, "…and grows the demo's own history");
+
+    M.tourGoto(0);
+    eq(M.dirtyDoc, false, "tourGoto(0) rebuilds a FRESH demo — clean");
+    eq(M.history.length, 0, "…with an empty history — the demo commit is gone, not merely undone");
+    eq(M.state.title, "Pearson Specter Litt", "…the demo's own literal title, not a stale copy");
+    eq(M.state.layout, "pyramid",
+      "…and the committed mutation itself is gone — replay-from-scratch, not undo, is the "
+      + "mechanism that makes Back trivial");
+    eq(M.tourStep, 0, "…and tourStep reads back the step just gone to");
+  });
+
+  /* --- 16i. the buttons: Back is a no-op at step 0, Next walks the table and
+     ends the tour at the last step instead of walking past it, X ends the
+     tour from anywhere --- */
+  await guarded("16i completes without throwing", async () => {
+    const M = makeModule();
+    M.state = M.defaults();
+    M.state.tiers = sixGrades();
+    check(M.startTour(), "the tour starts");
+    eq(M.tourStep, 0, "…opening on step 0");
+    eq(M.tourShown.join(","), "0", "…and showTourStep was called once, for step 0");
+
+    const shownBefore = M.tourShown.length;
+    M.clickTourBack();
+    eq(M.tourStep, 0, "Back at step 0 is a no-op — tourStep does not move");
+    eq(M.tourShown.length, shownBefore, "…and no rebuild is recorded — tourGoto was never called");
+
+    M.clickTourNext();
+    eq(M.tourStep, 1, "Next walks to step 1");
+    M.clickTourNext();
+    eq(M.tourStep, 2, "…then to step 2 — TOUR's own length is 3, so this is the last step");
+    eq(M.tourShown.slice(-2).join(","), "1,2", "…both rebuilds recorded, in order");
+
+    const shownAtEnd = M.tourShown.length;
+    M.clickTourNext();
+    check(M.tourSaved === null, "Next at the last step ends the tour instead of walking further");
+    eq(M.tourShown.length, shownAtEnd,
+      "…and does NOT call tourGoto — no further rebuild is recorded past the last step");
+    const last = M.classes[M.classes.length - 1];
+    check(!!last && last.op === "remove", "…and the class truth follows — the last write is the remove");
+
+    /* X ends the tour from any step, not only the last one. */
+    check(M.startTour(), "the tour starts again");
+    M.clickTourNext();
+    eq(M.tourStep, 1, "…and has walked to step 1");
+    M.clickTourX();
+    check(M.tourSaved === null, "the X ends the tour from wherever it was, not only the last step");
+  });
+
+  /* --- 16j. Escape runs first and consumes, ahead of everything the gate now
+     sits in front of --- */
+  await guarded("16j completes without throwing", async () => {
+    const M = makeModule();
+    M.state = M.defaults();
+    M.state.tiers = sixGrades();
+    check(M.startTour(), "the tour starts");
+
+    let prevented = false;
+    M.keydownHandler({key:"Escape", ctrlKey:false, metaKey:false, shiftKey:false,
+      preventDefault(){ prevented = true; }});
+    check(M.tourSaved === null, "Escape mid-tour ends the tour");
+    check(!prevented,
+      "…through endTour(), not through preventDefault() — Escape is left free to do whatever "
+      + "else a browser does with it once the tour chrome is gone");
+
+    /* Not touring: the gate's own two branches are both false (tourSaved is
+       null), so execution falls all the way through the gate itself without
+       taking either of its actions. The rest of the handler is unchanged by
+       this step; §16f's own Ctrl+Z-after-tour assertions above already prove
+       that once the gate lets a keystroke past, the shortcut it guards works
+       exactly as it always did. */
+    const genBefore = M.history.length;
+    let threw = false;
+    try{
+      M.keydownHandler({key:"a", ctrlKey:false, metaKey:false, shiftKey:false, preventDefault(){}});
+    }catch(e){ threw = true; }
+    check(!threw, "an ordinary key, not touring, passes through the gate without throwing");
+    eq(M.history.length, genBefore, "…and reaches none of the tour's own branches — nothing moved");
   });
 
 }
