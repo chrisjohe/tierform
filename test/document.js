@@ -360,7 +360,15 @@ const DECLS = ["HEX6","CONTRAST_MIN","SVGNS",
                   dialog is open on. resetPerRoster shuts both, so both come
                   along — a New or an Open that left either pointing at somebody
                   from the document just discarded is what that call prevents. */
-               "personOpen","editId"];
+               "personOpen","editId",
+               /* Transient roster-search UI state — never a document field, but
+                  openAddModal, openPasteModal, addFiles and moveAffordance all
+                  read or clear it now, so it has to exist here or every one of
+                  them throws before this suite ever gets to what it means to
+                  test. Stays "" throughout this suite: nothing here sets it, so
+                  clearRosterSearch's own early return means the search never
+                  actually reaches the #rosterSearch stubs below. */
+               "rosterQuery"];
 /* cloneState is gone: history entries now cross a boundary that swaps photo
    bytes for store ids, so the two directions are named separately. commit()
    and edit() are the only ways state changes, so both come along. */
@@ -470,6 +478,13 @@ const FNS   = ["updateDocLabel","syncNeverSavedBar","markDirty","resetPerRoster"
                /* syncRowIdentity itself changes no state — which is the point, and
                   therefore worth proving here rather than only reading */
                "personLabel","validatePhoto","moveAffordance","syncRowIdentity",
+               /* moveAffordance's own reordering-lock gate, and the two helpers
+                  the four add routes call to clear a search on open — grabbed
+                  real rather than stubbed so this suite proves they exist and
+                  do not throw, the same reason clearRosterSearch's callers
+                  (openAddModal, openPasteModal, addFiles, COMMANDS.importCsv)
+                  are grabbed real rather than described. */
+               "rosterFiltered","personMatches","clearRosterSearch",
                /* the Accent hex field. validColour is what decides a colour
                   everywhere, including on Open, and hexFieldValue is the one
                   thing on top of it — so both come along and the suite drives

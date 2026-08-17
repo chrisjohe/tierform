@@ -4517,8 +4517,34 @@ check(!/chipH/.test(SCRIPT), "no chipH — no geometry constant for an unused fe
          && handler[0].indexOf("openPasteModal()") < handler[0].indexOf('$("#pasteArea").value = text'),
         "the textarea is filled AFTER the modal opens, or openPasteModal's own reset erases it");
     }
-    check(/importCsv:\s*\(\)=>\$\("#csvPick"\)\.click\(\)/.test(SCRIPT),
+    /* COMMANDS.importCsv gained a first statement — clearing the roster
+       search on the way in, the same as every other add route — so the
+       command is a block body now rather than the bare expression this
+       pinned before. Still asserted as one literal: the rule under test is
+       that the file picker click survives untouched behind it. */
+    check(/importCsv:\s*\(\)=>\{ clearRosterSearch\(\); \$\("#csvPick"\)\.click\(\); \}/.test(SCRIPT),
       "COMMANDS.importCsv opens the file picker, the same way open opens #jsonPick");
+  }
+
+  /* Every add route clears the roster search on open, not on commit — a
+     filter left standing would otherwise silently exclude the very person
+     about to be added. Checked as a class over all four call sites, the way
+     CLAUDE.md asks for a rule that holds across several sites to be checked:
+     a per-instance list only guards the routes that existed when it was
+     written, and this is the site a fifth add route would join. */
+  {
+    const importCsvLine = /importCsv:\s*\(\)=>\{[\s\S]*?\},/.exec(SCRIPT);
+    const sites = [
+      ["openAddModal",       /function openAddModal\(wantTier\)\{[\s\S]*?\n\}/.exec(SCRIPT)],
+      ["openPasteModal",     /function openPasteModal\(\)\{[\s\S]*?\n\}/.exec(SCRIPT)],
+      ["addFiles",           /async function addFiles\(files\)\{[\s\S]*?\n\}/.exec(SCRIPT)],
+      ["COMMANDS.importCsv", importCsvLine]
+    ];
+    for(const [name, m] of sites){
+      check(!!m, name + " is readable");
+      check(m && /clearRosterSearch\(/.test(m[0]),
+        name + " calls clearRosterSearch() — every add route clears the roster search on open");
+    }
   }
 
   /* The fill. .big stays the ghost every other big button is; the modifier is

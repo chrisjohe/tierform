@@ -909,7 +909,15 @@ try{
                      editName: makeNode("input"), editGroup: makeNode("input"),
                      editRole: makeNode("input"), editTier: makeNode("select"),
                      addTierField: {hidden: false}, addFirstGradeField: {hidden: true},
-                     addTemplateHint: {hidden: true}};
+                     addTemplateHint: {hidden: true},
+                     /* The roster search row and its three controls. rosterCount
+                        and rosterSearch are nodes because renderRoster writes
+                        .textContent and clearRosterSearch writes .value; the row
+                        and the clear button are plain {hidden} objects, exactly
+                        like addTierField above, since nothing but their
+                        visibility is ever read. */
+                     rosterSearchRow: {hidden: false}, rosterCount: makeNode("p"),
+                     rosterSearch: makeNode("input"), rosterSearchClear: {hidden: false}};
       function $(sel){
         if(sel === "#roster")     return HOSTS.roster;
         if(sel === "#tiers")      return HOSTS.tiers;
@@ -922,12 +930,27 @@ try{
         if(sel === "#addTierField")      return HOSTS.addTierField;
         if(sel === "#addFirstGradeField")return HOSTS.addFirstGradeField;
         if(sel === "#addTemplateHint")   return HOSTS.addTemplateHint;
+        if(sel === "#rosterSearchRow")   return HOSTS.rosterSearchRow;
+        if(sel === "#rosterCount")       return HOSTS.rosterCount;
+        if(sel === "#rosterSearch")      return HOSTS.rosterSearch;
+        if(sel === "#rosterSearchClear") return HOSTS.rosterSearchClear;
         return null;                            // every other lookup is not this test's business
       }
       /* Ribbon overflow is covered by test/dom.js. This fixture isolates the
          roster tree, so layout measurement is deliberately a no-op here. */
       function syncRibbonOverflow(){}
       const meas = { font: "", measureText(t){ return {width: String(t||"").length * 6}; }};
+      /* The search never touches state — no commit(), no edit(), no
+         snapshot() — and none of the grabbed functions call any of the three
+         today either, so these stubs only ever count something if a search
+         path starts reaching one. Not grabbed from the app: a real commit()
+         needs history and photoStore machinery this fixture has no reason to
+         build, and the whole point here is a counter that goes red rather
+         than one that throws when a mutation adds a call. */
+      let historyWrites = 0;
+      function commit(){ historyWrites++; }
+      function edit(){ historyWrites++; }
+      function snapshot(){ historyWrites++; }
     `;
     const R = new Function("makeNode",
       DOC +
@@ -943,6 +966,11 @@ try{
        /* the arrows' enabled state and wording are resolved, not passed in: both
           row renderers ask moveTarget what the press would actually do */
        "gradeName","moveTarget","moveAffordance","personRowName","personRow","personMenuBody",
+       /* the roster search: the match policy, the "is a filter active" gate
+          moveAffordance and the row drag surface both read, and the function
+          every add route calls on open — grabbed real so this harness proves
+          they exist and behave rather than describing them */
+       "rosterFiltered","personMatches","clearRosterSearch",
        /* the Edit dialog's photo section — the one part of that dialog built
           from script, because it is the one part with two states */
        "editPhotoBody","syncEditPhoto","editPerson",
@@ -971,7 +999,7 @@ try{
       /* No chip is open in this harness, so syncGradePanel returns on its first
          line and never reaches for #gradePanel — which $() above does not serve.
          The declaration still has to exist or the call is a ReferenceError. */
-      "let state = null, gradeOpen = null, personOpen = null, editId = null;\n" +
+      "let state = null, gradeOpen = null, personOpen = null, editId = null, rosterQuery = \"\";\n" +
       /* The strip only holds chips now; every editable control moved into the
          panel that a chip opens. openGradePanel() is not grabbed — it reaches for
          #gradePanel and measures it — so the body is built directly, which is the
@@ -991,7 +1019,11 @@ try{
       "        dialog(s, id){ state = s; editId = id; syncEditModal(); },\n" +
       "        shut(){ personOpen = null; editId = null; clear(HOSTS.personMenu); clear(HOSTS.editPhoto); },\n" +
       "        sync(p){ return syncRowIdentity(p); },\n" +
-      "        panel(s, i){ state = s; return fill(el('div'), [gradePanelBody(s.tiers[i], i)]); }};"
+      "        panel(s, i){ state = s; return fill(el('div'), [gradePanelBody(s.tiers[i], i)]); },\n" +
+      /* The one way a test sets the query: rosterQuery is a free variable
+         inside this constructed module, invisible from outside it otherwise. */
+      "        query(v){ rosterQuery = v; },\n" +
+      "        writes(){ return historyWrites; }};"
     )(node);
 
     /* walk the built tree */
@@ -1971,7 +2003,141 @@ try{
       .concat(collect(R.HOSTS.roster, x => x.placeholder));
     check(!after.some(t => t === "Partner" || t === "Delete grade Partner"),
       "no part of the roster is left showing the old grade name");
+
+  /* ------------------------------------------------- 6a2. the roster search */
+
+  /* A hand-built roster rather than a fixture file, shaped so every query
+     below matches exactly one field on exactly one person: a mutation that
+     drops any one of personMatches' five reads (name, p.role, tierRole's
+     fallback, t.code, t.label, groupLabel — five names, one of them a pair)
+     turns exactly one assertion red without disturbing its neighbours.
+     Bo Cache's role is deliberately non-empty specifically so that querying
+     her own grade's label proves t.label is read on its own — for everyone
+     ELSE here role is empty, so their grade's name reaches them only
+     through tierRole's fallback, and the two paths would be indistinguishable
+     if every person's role were blank. */
+  {
+    function searchDoc(){
+      return {
+        tiers: [
+          {id:"tqA", code:"PTR", label:"Partner",  fill:"white", align:"center", attach:false, merge:false},
+          {id:"tqB", code:"MGR", label:"Manager",  fill:"white", align:"center", attach:false, merge:false},
+          {id:"tqC", code:"DIR", label:"Director", fill:"white", align:"center", attach:false, merge:false}
+        ],
+        groups: [{id:"gqA", label:"Falcons"}, {id:"gqB", label:"Owls"}],
+        people: [
+          {id:"pqA", name:"Ada Byte", tierId:"tqA", role:"",             groupId:"gqA"},
+          {id:"pqD", name:"Al Adams", tierId:"tqA", role:"",             groupId:"gqA"},
+          {id:"pqB", name:"Bo Cache", tierId:"tqC", role:"Team Captain", groupId:"gqB"},
+          {id:"pqC", name:"Cy Data",  tierId:"tqB", role:"",             groupId:null}
+        ]
+      };
+    }
+    const sdoc = searchDoc();
+    const N = sdoc.people.length;
+    const namesIn = () => collect(R.HOSTS.roster, x => x.className === "p-name" ? x.textContent : null);
+    const headsIn = () => collect(R.HOSTS.roster, x => x.className === "th" ? true : null);
+
+    /* (a) a name query narrows the tree to the matching row, drops the
+       heading of every grade with nothing left, and the surviving heading's
+       own count reflects the FILTERED list, not the grade's real headcount. */
+    R.query("Cache");
+    R.render(sdoc, null);
+    eq(namesIn().join(","), "Bo Cache",
+      "querying \"Cache\" leaves only Bo Cache's row in the tree — got " + JSON.stringify(namesIn()));
+    eq(headsIn().length, 1,
+      "…and only the one grade that still has someone in it keeps its .th heading");
+    eq(collect(R.HOSTS.roster, x => x.className === "ct" ? x.textContent : null).join(","), "1",
+      "…whose count span reads the filtered size of the grade, not its real headcount");
+
+    /* (b) five queries, five surfaces — name, p.role, tierRole's fallback
+       (role empty), t.code and t.label directly, and groupLabel. */
+    function onlyMatching(q){ R.query(q); R.render(sdoc, null); return namesIn().join(","); }
+    eq(onlyMatching("Captain"), "Bo Cache", "\"Captain\" matches only through p.role");
+    eq(onlyMatching("Partner"), "Ada Byte,Al Adams",
+      "\"Partner\" matches Ada and Al — both hold an empty role, so their grade's own "
+      + "name reaches them only through tierRole's fallback");
+    eq(onlyMatching("MGR"), "Cy Data", "\"MGR\" matches only through the grade's own t.code");
+    eq(onlyMatching("Director"), "Bo Cache",
+      "\"Director\" matches Bo Cache despite her non-empty role — proving t.label is read "
+      + "on its own, not only as tierRole's fallback text");
+    eq(onlyMatching("Owls"), "Bo Cache", "\"Owls\" matches only through groupLabel(st, p)");
+
+    /* (c) the count line: exact wording while a filter is active, hidden once
+       the query is empty again. */
+    R.query("Cache");
+    R.render(sdoc, null);
+    eq(R.HOSTS.rosterCount.hidden, false, "the count line shows while a filter is active");
+    eq(R.HOSTS.rosterCount.textContent, "1 of " + N + " shown",
+      "…reading exactly \"1 of " + N + " shown\" — got "
+      + JSON.stringify(R.HOSTS.rosterCount.textContent));
+    R.query("");
+    R.render(sdoc, null);
+    eq(R.HOSTS.rosterCount.hidden, true, "…and hides again once the query is empty");
+
+    /* (d) zero matches: the roster's own .empty style names the query back,
+       and not one grade keeps a heading with nobody left in it. */
+    R.query("zzz");
+    R.render(sdoc, null);
+    eq(collect(R.HOSTS.roster, x => x.className === "empty" ? x.textContent : null).join(","),
+      'Nobody matches "zzz"',
+      "a query matching nobody shows the roster's own empty-state wording, naming the query");
+    eq(headsIn().length, 0, "…and every grade lost its heading along with its last match");
+
+    /* (e) clearing the query brings everyone back — same row count as an
+       unfiltered render. */
+    R.query("");
+    R.render(sdoc, null);
+    eq(namesIn().length, N, "an empty query shows every person again — got " + namesIn().length);
+
+    /* (f) moveAffordance locks BOTH arrows while a filter is active, with the
+       shared reason sentence, and forgets nothing about the ordinary answer
+       once the search is cleared. Ada is grade tqA's first person and Al its
+       second, so unfiltered her own Move up is disabled (already first) and
+       Move down is enabled (Al is right behind her) — a real toggle, not a
+       coincidence, so clearing the search has something to prove it restored. */
+    const LOCK_TITLE = "Not available while searching — clear the search to reorder";
+    function moveButtons(menuNode){
+      return {up:   collect(menuNode, x => x.dataset && x.dataset.act === "up"   ? x : null)[0],
+              down: collect(menuNode, x => x.dataset && x.dataset.act === "down" ? x : null)[0]};
+    }
+    R.query("");
+    let mv = moveButtons(R.menu(sdoc, "pqA"));
+    check(mv.up && mv.up.disabled === true, "unfiltered: Ada is first in her grade, so Move up is disabled");
+    check(mv.down && mv.down.disabled === false, "unfiltered: Move down is enabled — Al is right behind her");
+    R.query("Cache");
+    mv = moveButtons(R.menu(sdoc, "pqA"));
+    check(mv.up && mv.up.disabled === true && mv.up.title === LOCK_TITLE,
+      "filtered: Move up is disabled and carries the shared reason — got " + JSON.stringify(mv.up && mv.up.title));
+    check(mv.down && mv.down.disabled === true && mv.down.title === LOCK_TITLE,
+      "filtered: Move down is ALSO disabled now, with the same reason — got "
+      + JSON.stringify(mv.down && mv.down.title));
+    R.query("");
+    mv = moveButtons(R.menu(sdoc, "pqA"));
+    check(mv.up && mv.up.disabled === true, "clearing the search restores Move up's ordinary (still disabled) state");
+    check(mv.down && mv.down.disabled === false,
+      "…and restores Move down's ordinary ENABLED state — the lock let go, it did not overwrite a value");
+
+    /* (h) visible only once people exist, and hiding the row resets the query
+       so it cannot silently ambush the next person added to an empty roster. */
+    R.query("Cache");
+    R.render({tiers: sdoc.tiers, groups: sdoc.groups, people: []}, null);
+    eq(R.HOSTS.rosterSearchRow.hidden, true, "the search row hides itself once nobody is left to search");
+    R.render(sdoc, null);
+    eq(namesIn().length, N,
+      "…and the reset is real, not cosmetic — a render with people again shows everyone, "
+      + "not a filter left standing from before the roster went empty");
+
+    /* (i) THE CLASS CHECK. Nothing above this line — filtering, the count
+       line, the empty state, the search-lock on moveAffordance, or the
+       hide/reset — ever reaches commit(), edit() or snapshot(). The search
+       never touches state; if a mutation ever wired one in, this is what
+       turns red instead of the dirty flag or an undo entry nobody is
+       watching in this suite. */
+    eq(R.writes(), 0,
+      "the whole search flow above touched history zero times — got " + R.writes() + " write(s)");
   }
+  }   // closes §6's own outer block, opened back at "the roster panel builds"
 
   /* ------------------------------------------------- 6b. the too-small-to-read warning */
 
@@ -3305,9 +3471,17 @@ try{
            otherwise throw a ReferenceError building rowDragSurface's config
            instead of failing a named assertion. Expected to stay empty here. */
         function reorderGrade(a, b, after){ CALLS.offReorder.push([a, b, after]); return true; }
+        /* rowDragSurface's own config reads this — the gate that locks
+           reordering while the roster panel is showing a filtered subset.
+           Grabbed real (below), so it has to find a real rosterQuery here or
+           throw a ReferenceError the moment a gesture starts, exactly the
+           way rosterFiltered's app-side callers do. Defaults to "" — the same
+           as the app's own top-level default — so every §6h assertion above
+           this point keeps behaving as an unfiltered roster. */
+        let rosterQuery = "";
         ` +
         grabConst("SVGNS") + "\n" +
-        ["el","icon","clear","fill","makeDragSurface"]
+        ["el","icon","clear","fill","makeDragSurface","rosterFiltered"]
           .map(grabFn).join("\n") + "\n" +
         /* The app's own instantiation, pulled in whole rather than built here:
            a test-built config answers for itself, not for the app. Running it
@@ -3365,7 +3539,8 @@ try{
               else out.push(c.classList.contains("dragging") ? "(" + c.dataset.id + ")" : c.dataset.id);
             }
             return out;
-          }
+          },
+          query(v){ rosterQuery = v; }
         };
       `)(dnode, SLOT_HITTABLE_R, DRAG_HIDES_R, HEIGHTS);
 
@@ -3632,6 +3807,29 @@ try{
       check(!R.hasPointer(),
         "a touch press starts no drag — the panel scrolls by finger and must "
         + "keep doing so, exactly as the ribbon does");
+
+      /* --- reordering is locked while the panel is searching --- */
+      /* rowDragSurface's own `allowed` predicate — checked once, at the start
+         of a gesture, in both dragstart and pointerdown. A filtered panel
+         refuses to start either path; the same gesture with the filter
+         cleared is the positive control proving the refusal above is the
+         gate and not a broken stub. */
+      R.render(GROUPS);
+      R.query("anything");
+      R.fire("dragstart", R.evAt(inRow("pAna", "top"), {target:R.row("pAna")}));
+      eq(R.dragId(), null, "dragstart refuses to start a new drag while the search is active");
+      R.fire("pointerdown", R.evAt(inRow("pAna", "top"), {target:R.row("pAna")}));
+      check(!R.hasPointer(),
+        "…and pointerdown does not even open a press record while searching");
+      R.fire("pointermove", R.evAt(inRow("pAna", "top") + 10, {target:R.row("pAna")}));
+      check(!R.pointerDragging(),
+        "…so drifting past the six-pixel threshold still starts nothing");
+      R.query("");
+      R.render(GROUPS);
+      R.fire("dragstart", R.evAt(inRow("pAna", "top"), {target:R.row("pAna")}));
+      eq(R.dragId(), "pAna",
+        "the positive control: the SAME gesture begins normally once the search is cleared");
+      R.fire("dragend", {});
     }
   }
 

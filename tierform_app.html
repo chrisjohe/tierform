@@ -803,6 +803,20 @@
   .th .th-add{align-self:center;padding:2px 4px;margin-left:2px;border-color:var(--line-2)}
   .th .th-add .ic{width:14px;height:14px}
 
+  /* The search row: relatively positioned so its clear button can sit inside
+     it without a second layout system, the way .modal-x sits inside its own
+     dialog box. top:0;bottom:0;margin:auto 0 centres it without a transform —
+     button:active's own press effect is a transform, and this would replace
+     it rather than combine with it. Right-padding on the input keeps typed
+     text from running under the button once it appears. */
+  .p-search{position:relative;margin-bottom:12px}
+  .p-search input[type=text]{padding-right:30px}
+  .p-search-clear{position:absolute;top:0;bottom:0;right:3px;margin:auto 0;padding:4px}
+  .p-search-clear .ic{width:14px;height:14px}
+  /* Muted and small like .empty beside it, so "7 of 23 shown" reads as a status
+     line rather than a heading. */
+  .p-search-count{color:var(--mute);font-size:11px;line-height:1.5;margin:0 0 8px}
+
   /* Avatar, name and one caret. Nothing else: a surface made entirely of
      controls leaves nothing to take hold of. The thumbnail and the name are
      surface — no verb, no tab stop, aria-hidden on the picture because the
@@ -2006,6 +2020,18 @@
 
     <section class="blk">
       <h2>Roster<button class="ghost panel-hide" data-cmd="toggleRoster" aria-label="Hide the roster panel" title="Hide the roster panel"><svg class="ic"><use href="#i-panel-close"/></svg></button></h2>
+      <!-- Filters the panel only — never state, never the chart. Sits outside
+           #roster so renderRoster's fill()-and-rebuild never touches it; a
+           caret in this input therefore survives every re-render on its own,
+           with no entry in focusedField/restoreField at all. Visible only
+           once people exist (renderRoster toggles the row's own [hidden]),
+           and #rosterSearchClear is a real button — never the SVG inside it —
+           so the .hidden IDL property genuinely reflects here. -->
+      <div class="p-search" id="rosterSearchRow" hidden>
+        <input type="text" id="rosterSearch" placeholder="Search the roster" aria-label="Search the roster">
+        <button type="button" class="ghost p-search-clear" id="rosterSearchClear" aria-label="Clear the search" title="Clear the search" hidden><svg class="ic"><use href="#i-close"/></svg></button>
+      </div>
+      <p class="p-search-count" id="rosterCount" role="status" hidden></p>
       <div id="roster"></div>
     </section>
     <!-- Below the roster, not above it: the Add people dialog on the split's
@@ -6595,6 +6621,16 @@ function framingLabel(p){
    Inside the group the wording is untouched — there is nothing new to announce. */
 function moveAffordance(p, dir, who){
   const word = dir < 0 ? "up" : "down";
+  /* The Angle-in-Swimlanes pattern: visible, locked, explained — rather than
+     silently disappearing. Reordering while the panel shows a filtered
+     subset would move a person past rows the search is hiding, so both the
+     row menu (through this) and the drag surface (through rosterFiltered()
+     directly) refuse for the same reason. */
+  if(rosterFiltered()){
+    return {disabled:true,
+            title:"Not available while searching — clear the search to reorder",
+            label:"Move " + who + " " + word};
+  }
   const want = moveTarget(p.id, dir);
   if(want && want.kind === "grade"){
     const dest = gradeName(want.tier);
@@ -7015,17 +7051,67 @@ function restoreField(f){
   }
 }
 
+/* Transient UI state, never state. The roster search never calls commit(),
+   edit() or snapshot() — nothing about the document changes when someone
+   filters the panel, so there is no undo entry and no dirty flag, and this
+   is a bare `let` beside the renderer rather than a document property. */
+let rosterQuery = "";
+/* The one definition of "a filter is active": the trimmed query is non-empty,
+   so a whitespace-only query filters nothing. moveAffordance and the row drag
+   surface both read this rather than re-deriving it, so "searching" means the
+   same thing everywhere it is asked. */
+function rosterFiltered(){ return rosterQuery.trim().length > 0; }
+/* The one writer of the match policy: case-insensitive substring against
+   every surface a row actually shows. Reads through tierRole and groupLabel —
+   never a raw field — so it cannot drift from what personRow and the heading
+   print; t.code and t.label are read directly because there is no reader
+   function for those two the row already goes through. */
+function personMatches(st, p, q){
+  const t = (st.tiers || []).find(x => x.id === p.tierId);
+  const hay = [p.name || "", p.role || tierRole(t), t ? t.code : "", t ? t.label : "",
+               groupLabel(st, p)].join("\n").toLowerCase();
+  return hay.indexOf(q.toLowerCase()) >= 0;
+}
+/* Called from every add route on OPEN, not on commit: a search left standing
+   would otherwise silently exclude the very person just added. Cheap early
+   return when there is nothing to clear, so it never causes a gratuitous
+   re-render on a route that was not filtering anything anyway. */
+function clearRosterSearch(){
+  if(rosterQuery === "") return;
+  rosterQuery = "";
+  $("#rosterSearch").value = "";
+  $("#rosterSearchClear").hidden = true;
+  renderRoster();
+}
+
 function renderRoster(){
   const keepFocus = focusedField();
   const host = $("#roster");
+  /* Visible only once people exist. Hiding it also resets the transient query
+     — rosterQuery, the input's own value and the clear button — so a filter
+     cannot survive invisibly and ambush the next person added to an empty
+     roster. */
+  const searchRow = $("#rosterSearchRow");
+  searchRow.hidden = !state.people.length;
+  if(searchRow.hidden && rosterQuery !== ""){
+    rosterQuery = "";
+    $("#rosterSearch").value = "";
+    $("#rosterSearchClear").hidden = true;
+  }
+  const q = rosterQuery.trim();
+  const countEl = $("#rosterCount");
   if(!state.people.length){
     fill(host, [el("p", {cls:"empty",
       text:"Nobody yet. Add someone with the button below, or drop photos on it."})]);
+    countEl.hidden = true;
   }else{
     const groups = [];
+    let shown = 0;
     for(const t of state.tiers){
-      const list = state.people.filter(p => p.tierId === t.id);
+      const list = state.people.filter(p => p.tierId === t.id
+        && (!q || personMatches(state, p, q)));
       if(!list.length) continue;
+      shown += list.length;
       const head = el("div", {cls:"th"});
       for(const c of codeParts(t.code)) head.appendChild(el("span", {cls:"code", text:c}));
       head.appendChild(el("span", {cls:"nm", text:t.label}));
@@ -7049,7 +7135,18 @@ function renderRoster(){
       list.forEach(p => group.appendChild(personRow(p)));
       groups.push(group);
     }
-    fill(host, groups);
+    if(q && !shown){
+      fill(host, [el("p", {cls:"empty", text:'Nobody matches "' + rosterQuery + '"'})]);
+    }else{
+      fill(host, groups);
+    }
+    if(q){
+      countEl.hidden = false;
+      countEl.textContent = shown + " of " + state.people.length + " shown";
+    }else{
+      countEl.hidden = true;
+      countEl.textContent = "";
+    }
   }
 
   /* Zero grades names itself rather than leaving the strip blank — invisible
@@ -7410,6 +7507,7 @@ function photolessMatch(name, claimed){
 }
 
 async function addFiles(files){
+  clearRosterSearch();
   /* Before the dialog, not after: a second batch cannot be asked about while
      the first is still decoding, because the answer would apply to a roster
      that is about to change underneath it. Same message the path has always
@@ -7820,6 +7918,7 @@ function openInfo(name){
 function closeInfoModal(){ modalClose("#infoModal"); }
 
 function openPasteModal(){
+  clearRosterSearch();
   $("#pasteArea").value = "";
   /* Nothing to build from state: the dialog asks nothing about grades now. Rows
      that name none go to NEW, which showPastePreview names and confirmPaste
@@ -8042,6 +8141,11 @@ function syncAddAvailability(){
    whether it is a grade, silently answer no, and the dialog would open with
    no grade preselected. */
 function openAddModal(wantTier){
+  /* Opening any add route clears the search on the way IN, not on commit —
+     a filter must not silently exclude the very person about to be added.
+     Covers the ribbon face, the roster heading's own "+", and the solo-photo
+     drop, which reaches here through addPhotoIntoDialog. */
+  clearRosterSearch();
   /* Rebuilt from state every time, and the previous choice kept only if that
      grade still exists — the document can have been renamed, reordered or
      emptied since the dialog was last open. Same helper the Edit dialog's grade
@@ -8774,7 +8878,7 @@ const COMMANDS = {
      a second dialog of its own. The #csvPick change handler does the reading
      and the parsing; this command only opens the file picker, the same way
      openRoster's own command only clicks #jsonPick. */
-  importCsv:    ()=>$("#csvPick").click(),
+  importCsv:    ()=>{ clearRosterSearch(); $("#csvPick").click(); },
   /* The people half of the two complete-document actions in Structure, and
      built the same way: ask, re-check what the answer was given about, then one
      commit. It writes state.people and nothing else — the grades, the title,
@@ -9432,6 +9536,10 @@ function makeDragSurface(cfg){
     if(pointer && pointer.dragging){ e.preventDefault(); return; }
     const item = e.target.closest(cfg.itemSelector);
     if(!item) return;
+    /* Checked once, at the start of a gesture only — never in dragover or
+       drop, so a gesture already under way finishes normally even if the
+       gate would refuse a new one. */
+    if(cfg.allowed && !cfg.allowed()) return;
     begin(item);
     /* TRAP: taking the item out of the flow inside this handler cancels the
        drag in some browsers — the drag image is grabbed after dragstart
@@ -9492,6 +9600,7 @@ function makeDragSurface(cfg){
     if(e.target.closest(cfg.excludePress)) return;
     const item = e.target.closest(cfg.itemSelector);
     if(!item) return;
+    if(cfg.allowed && !cfg.allowed()) return;
     pointer = {id:item.dataset.id, x:e.clientX, y:e.clientY,
                pointerId:e.pointerId, item, dragging:false};
   });
@@ -9567,6 +9676,11 @@ const rowDragSurface = makeDragSurface({
   slotClass: "p-drop-slot",
   axis: "y",
   excludePress: ".p-menu",
+  /* Reordering is locked while the panel is showing a filtered subset — the
+     same rule moveAffordance enforces for the row menu's Move up/down. Only
+     this surface passes it; the grade strip and the group modal reorder
+     unfiltered lists and take no predicate. */
+  allowed: ()=> !rosterFiltered(),
   /* A group heading resolves to the last row of its group with after:true —
      which is what "the end of that grade" means — so reorderPerson never has
      to know about headings, and an empty grade cannot be named because it has
@@ -9930,6 +10044,30 @@ $("#templatesMenu").addEventListener("click", e=>{
   if(!el) return;
   closeMenu(true);
   applyTemplate(el.dataset.tpl);
+});
+
+// roster search — transient UI only, never state; see rosterQuery above.
+$("#rosterSearch").addEventListener("input", e=>{
+  rosterQuery = e.target.value;
+  $("#rosterSearchClear").hidden = !rosterQuery;
+  renderRoster();
+});
+$("#rosterSearch").addEventListener("keydown", e=>{
+  if(e.key !== "Escape") return;
+  /* An empty field has nothing to clear — do nothing and let the event fall
+     through to the global handler, which ends any edit session and (finding
+     no dialog or menu open) does nothing further either. */
+  if(!e.target.value) return;
+  /* Consumed here, so the global Escape handler at document level never
+     also acts — this field carries no edit() session for it to end, and
+     none of the dialogs it checks are open while this input has focus. */
+  e.stopPropagation();
+  clearRosterSearch();
+  $("#rosterSearch").focus();
+});
+$("#rosterSearchClear").addEventListener("click", ()=>{
+  clearRosterSearch();
+  $("#rosterSearch").focus();
 });
 
 // header settings

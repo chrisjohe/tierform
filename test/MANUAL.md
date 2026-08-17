@@ -445,6 +445,33 @@ funnel and the exports:
 - [ ] Layout code changed: export **PNG and PDF once in Tornado and once in
       Pyramid** — required, no suite covers the painted result.
 
+### Roster search
+The match policy, the lock on reordering and the class check that it never
+touches state are all suite-covered; what only a browser shows is the field
+itself behaving like a field:
+- [ ] The search row appears only once someone is on the roster: open an
+      empty canvas and confirm no field is shown, only the "Nobody yet…" text.
+- [ ] Typing filters the panel live, and the caret stays in the field through
+      every keystroke — **this is the one item no suite can reach**, since the
+      fixtures harness rebuilds the roster tree against a stub with no real
+      focus to lose. Type a few characters, delete some, retype: the caret
+      never jumps out of the field.
+- [ ] The count line reads "N of M shown" while filtering. A query matching
+      nobody replaces the roster with the empty-state text, naming the query
+      back (`Nobody matches "zzz"`). Both the × button and Escape clear the
+      field and leave focus in it.
+- [ ] While filtering: Move up / Move down in a row's menu are disabled with
+      the "Not available while searching…" tooltip; dragging a row — native
+      drag and the mouse/pen pointer fallback both — starts nothing; Edit
+      details and Remove still work normally.
+- [ ] Opening any add route while a search is active clears it immediately —
+      the Add dialog (from the ribbon face or the grade heading's own "+"),
+      Add list…, Import CSV, and a photo drop — including when the dialog
+      that opened is then cancelled; the search stays cleared rather than
+      coming back.
+- [ ] The chart never changes while filtering, and Undo offers nothing new
+      after a search — the history list is exactly what it was before typing.
+
 ### Structure (the tab; the things on it are still grades)
 - [ ] The tab reads **Structure**, and the left panel still reads **Roster**.
 - [ ] Add a grade — **it appears on the chart immediately**, not on the next edit.
